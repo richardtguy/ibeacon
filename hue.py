@@ -1,10 +1,120 @@
-import requests, json, datetime
+import requests, json, datetime, subprocess, signal
 import log
 import config
 
+class ScanTimeout():
+	"""
+	Implement a timeout alarm
+	"""
+	def __init__(self, seconds=1, error_message='Timed out'):
+		self.seconds = seconds
+		self.error_message = error_message
+		
+	def _handle_timeout(self, signum, frame):
+		raise ScanTimeoutError(self.error_message)
+		
+	def __enter__(self):
+		signal.signal(signal.SIGALRM, self._handle_timeout)
+		signal.alarm(self.seconds)
+		
+	def __exit__(self, type, value, traceback):
+		signal.alarm(0)
+
+class ScanTimeoutError(Exception):
+	"""
+	Exception handler for scan timeout
+	"""
+	def __init__(self, error_message):
+		self.error_message = error_message
+	
+	def __str__(self):
+		return repr(self.error_message)
+		
+class PresenceSensor():
+	"""
+	Implement a sensor to monitor if house is occupied using iBeacon key fobs
+	occupied() method returns True if one or more registered beacons is found
+	"""
+
+	def __init__(self):
+		"""
+		Initialise PresenceMonitor
+		"""
+		self.beacons = {}
+
+	def occupied(self):
+		"""
+		Return True if one or more registered iBeacons detected, False if none
+		"""
+		# run bash script to catch ibeacon advertisements until all registered beacons are
+		# accounted for or a timeout is reached
+
+		# start subprocesses (suppress broken pipe errors by redirecting to /dev/null)
+		if not config.TESTING:
+			hcidump_args = ['hcidump', '--raw', '-i', config.HCI]
+		else:
+			hcidump_args = ['cat', 'hcidump.dump']	
+		parse_args = ['./ibeacon_parse.sh']
+		hcidump_p = subprocess.Popen(hcidump_args, stdout=subprocess.PIPE)
+		parse_p = subprocess.Popen(parse_args, stdout=subprocess.PIPE, stdin=hcidump_p.stdout, stderr=config.DEVNULL)
+
+		# initialise flags
+		timed_out = False
+		beacons_found = 0
+		for b in self.beacons.keys(): self.beacons[b] = False
+		start = datetime.datetime.now()
+		
+		while (not timed_out) and (beacons_found < 1):
+			# read next line of output from subprocess
+			with ScanTimeout(seconds=config.SCAN_TIMEOUT, error_message='no beacons found'):
+				try:				
+					# read next ibeacon advertisement packet
+					beacon = json.loads(parse_p.stdout.readline())
+					
+					# if beacon is registered then log it as present
+					if (beacon['Minor'] in self.beacons.keys()) and (self.beacons[beacon['Minor']] == False):
+						if config.DEBUG: print('Found beacon: UUID: %s, Major: %s, Minor: %s, RSSI: %s' % (beacon['UUID'], beacon['Major'], beacon['Minor'], beacon['RSSI']))
+						self.beacons[beacon['Minor']] = True
+						beacons_found += 1
+												
+				except ScanTimeoutError as err:
+					if config.DEBUG: print('Scan timed out; %s' % (err.error_message))
+
+			# check for timeout
+			elapsed_time = datetime.datetime.now() - start
+			elapsed_secs = elapsed_time.seconds
+			if elapsed_secs >= config.SCAN_TIMEOUT:
+				timed_out = True
+	
+		# terminate subprocesses
+		parse_p.terminate()
+		hcidump_p.terminate()
+
+		# update whether house is occupied or not and return
+		occupied = False
+		for b in self.beacons.values():
+			if b == True:
+				occupied = True
+				break
+
+		return occupied
+		
+	def register_beacon(self, beacon):
+		"""
+		Add iBeacon to list of registered beacons
+		"""
+		self.beacons[beacon] = False
+	
+	def deregister_beacon(self, beacon):
+		"""
+		Remove iBeacon from list of registered beacons
+		"""
+		del self.beacons[beacon]
+
 class DaylightSensor():
 	"""
-	Implement a daylight sensor. Query() method returns true if daylight, false if not
+	Implement a daylight sensor
+	query() method returns true if daylight, false if not
 	"""
 	
 	def __init__(self, lat, lng):
@@ -50,20 +160,30 @@ class DaylightSensor():
 
 class HueController():
 	"""
-	Implement a controller to initiate actions on hue bridge based on rules.
-	Usage: call poll() method in a loop to check rules and take predefined actions.
+	Implement a controller to initiate actions on hue bridge based on time-based rules
+	Usage: call tick() method in a loop to check rules and take predefined actions
 	"""
 	
-	def __init__(self, bridge, rules, daylight_sensor):
+	def __init__(self, bridge, rules, daylight_sensor, presence_sensor=None):
 		"""
 		Initialise controller and read rules from file
 		"""
 		# set up log
 		self.logger = log.TerminalLog()
 		
-		self.bridge = bridge
-		self.daylight_sensor = daylight_sensor
-		
+		if isinstance(bridge, HueBridge):
+			self.bridge = bridge
+		else:
+			self.logger.err('Invalid HueBridge object %s supplied to HueController %s' % (bridge, self))
+		if isinstance(daylight_sensor, DaylightSensor):
+			self.daylight_sensor = daylight_sensor
+		else:
+			self.logger.err('Invalid DaylightSensor object %s supplied to HueController %s' % (daylight_sensor, self))
+		if (presence_sensor != None) and (isinstance(presence_sensor, PresenceSensor)):
+			self.presence_sensor = presence_sensor
+		else:
+			self.logger.err('Invalid PresenceMonitor object %s supplied to HueController %s' % (presence_sensor, self))
+					
 		self.last_tick_daylight = False
 		self.last_tick = datetime.datetime.now()
 
@@ -71,7 +191,7 @@ class HueController():
 		with open(rules, 'r') as f:
 			self.rules = json.loads(f.read())
 		
-		# change time strings to datetime objects for each rule
+		# change time strings in each rule to datetime objects 
 		for rule in self.rules.values():
 			try:
 				rule['time'] = datetime.datetime.strptime(rule['time'],'%H:%M')
@@ -129,6 +249,12 @@ class HueController():
 			self.logger.success('Triggered action %s' % (rule))
 		except TypeError:
 			self.logger.err('Action failed %s' % (rule))
+			
+		# turn all lights off again if no-one is home
+		if self.presence_sensor != None:
+			if not self.presence_sensor.occupied():
+				for light in self.bridge:
+					light.off()
 
 	def _update_times_to_today(self, today):
 		"""
@@ -159,7 +285,7 @@ class HueBridge():
 		url = 'http://'+IP+'/api/'+username+'/lights'
 		r = requests.get(url)
 		if r.status_code == 200:
-			HueBridge.log.success('hue bridge ready')
+			HueBridge.log.success('Hue bridge ready')
 		else:
 			HueBridge.log.err('Could not contact hue bridge')
 		r = r.json()
@@ -172,6 +298,10 @@ class HueBridge():
 		# set username and IP address for all HueLight objects
 		HueLight.username = username
 		HueLight.IP = IP
+
+		if config.DEBUG:
+			for light in self:
+				HueBridge.log.success(light.get_name())
 					
 	def __iter__(self):
 		# create a list of HueLight objects to iterate over by index
@@ -180,7 +310,7 @@ class HueBridge():
 		self.counter = -1
 		return self
 	
-	def __next__(self):
+	def next(self):
 		self.counter = self.counter + 1
 		if self.counter == self.num_lights:
 			raise StopIteration

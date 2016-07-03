@@ -1,5 +1,4 @@
 import hue
-import ibeacon
 import config
 
 import time, datetime
@@ -9,21 +8,21 @@ import time, datetime
 if config.TESTING: bridge = None
 else: bridge = hue.HueBridge(username=config.HUE_USERNAME, IP=config.HUE_IP_ADDRESS)
 
+
+
 # initialise daylight sensor (daylight times from sunrise-sunset.org API)
 daylight_sensor = hue.DaylightSensor(config.LATITUDE, config.LONGITUDE)
 
+# initialise presence sensor and register beacons
+presence_sensor = hue.PresenceSensor()
+presence_sensor.register_beacon('54480')	# Richard
+presence_sensor.register_beacon('54481')	# Michelle
+
 # initialise hue controller (triggers timed actions)
-hue_controller = hue.HueController(bridge=bridge, rules=config.RULES, daylight_sensor=daylight_sensor)
-
-# initialise presence sensor
-presence_sensor = ibeacon.PresenceMonitor()
-
-# register iBeacons with presence sensor
-presence_sensor.register_beacon('54480')
-presence_sensor.register_beacon('54482')
+hue_controller = hue.HueController(bridge, config.RULES, daylight_sensor, presence_sensor)
 
 # set lights to come on when we get home
-welcome_lights = ['Hall 1', 'Hall 2']
+welcome_lights = ['Hall 1', 'Hall 2', 'Dining table']
 
 occupied_before = False
 
@@ -46,10 +45,8 @@ while True:
 			print('Bye!')
 			for light in bridge:
 				light.off()
-			time.sleep(30)
 	
 	occupied_before = occupied_now
 	
 	# wait a couple of seconds before restarting scan
 	time.sleep(config.DELAY)
-	print('.')

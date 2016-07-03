@@ -1,5 +1,5 @@
 In one terminal window, start lescan
-$ sudo hciconfig lescan --duplicates &
+$ sudo hcitool lescan --duplicates &
 
 In another terminal window, run controller.py
 $ sudo python controller.py
