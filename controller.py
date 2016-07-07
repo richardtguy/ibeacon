@@ -8,8 +8,6 @@ import time, datetime
 if config.TESTING: bridge = None
 else: bridge = hue.HueBridge(username=config.HUE_USERNAME, IP=config.HUE_IP_ADDRESS)
 
-
-
 # initialise daylight sensor (daylight times from sunrise-sunset.org API)
 daylight_sensor = hue.DaylightSensor(config.LATITUDE, config.LONGITUDE)
 
@@ -34,15 +32,17 @@ while True:
 	occupied_now = presence_sensor.occupied()
 	if occupied_before != occupied_now:	
 		if	occupied_now:
-			print('Welcome home!')
+			print('[%s] Welcome home!' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
 			if daylight_sensor.query(datetime.datetime.now()):
+				print('It\'s daylight...')
 				for light in welcome_lights:
 					bridge.get(light).on()
 			else:
+				print('It\'s dark...')
 				for light in bridge:
 					light.on()
 		else:
-			print('Bye!')
+			print('[%s] Bye!' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
 			for light in bridge:
 				light.off()
 	

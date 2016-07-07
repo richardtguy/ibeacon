@@ -20,4 +20,4 @@ class TerminalLog:
 		self.print_to_log(self.YELLOW, 'Warn', message)
 
 	def info(self, message):
-		print(message)
+		self.print_to_log('', 'Info', message)
