@@ -12,10 +12,12 @@ The cnostructor method starts a subprocess to scan for Bluetooth LE devices usin
 
 Note that to detect beacons the python script must be run as root, as the `lescan` and `hcidump` commands require root permissions.
 
-	A configuration file `config.py` should be supplied including the following parameters:
-	`HCI` - Bluetooth device to use, e.g. `hci0`
-	`SCAN_TIMEOUT` - Number of seconds to scan for registered beacons before timeout.
-	`DEVNULL` - Path to `\dev\null` (used to suppress stderr from subprocess)
+A configuration file `config.py` should be supplied including the following parameters:
+|Parameter|Description|
+|---|---|
+|`HCI`|Bluetooth device to use, e.g. `hci0`|
+|`SCAN_TIMEOUT`|Number of seconds to scan for registered beacons before timeout.|
+|`DEVNULL`|Path to `\dev\null` (used to suppress stderr from subprocess)|
 
 `hue.PresenceSensor.query()`
 Scans for advertisement packets from registered iBeacons.  Returns `True` as soon as one registered beacon is detected.  Otherwise waits `SCAN_TIMEOUT` seconds before returning `False` if no registered beacons are detected.
