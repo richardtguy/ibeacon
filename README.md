@@ -41,6 +41,21 @@ Parameter | Description
 ####hue.DaylightSensor.query(*time*)
 The argument `time` should be supplied as a `datetime` object in UTC.  If it has been more than `DAYLIGHT_UPDATE_FREQUENCY` hours since daylight times were last refreshed from [sunrise-sunset.org](http://www.sunrise-sunset.org), these are refreshed.  Then returns `True` if the date supplied as an argument is during daylight hours, `False` otherwise.
 
+###class hue.HueLight(*name, ID*)
+The HueLight class represents a single lamp connected to the bridge.  Instances of the HueLight class may be created and used seperately or (more conveniently) created for each light stored in the bridge by the constructor of a HueBridge object.  Various methods are implemented in order to control the lamp.
+
+####hue.HueLight.on()
+	Switches the lamp on.  (Colour, brightness and other settings are unaffected.)
+
+####hue.HueLight.off()
+	Switches the lamp off.  (Colour, brightness and other settings are unaffected.)
+
+####hue.HueLight.dim()
+	Switches the lamp on and adjusts the brightness to a minimum setting.
+
+####hue.HueLight.save_state()
+Saves the current status of the lamp returned from the bridge into `self.state`.  May be used to e.g. reset lamp back to its previous on/off state after recalling a scene.  After calling this method `self.state[’on’]` is `True` if lamp was on, `False` if lamp was off when the method was called.
+
 ##Issues
 - Verify registered beacons using UUID, Major & Minor ID
 - Monitor battery level of ibeacon (if available) and warn if low
