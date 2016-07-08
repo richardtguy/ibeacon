@@ -41,6 +41,9 @@ Parameter | Description
 ####hue.DaylightSensor.query(*time*)
 The argument `time` should be supplied as a `datetime` object in UTC.  If it has been more than `DAYLIGHT_UPDATE_FREQUENCY` hours since daylight times were last refreshed from [sunrise-sunset.org](http://www.sunrise-sunset.org), these are refreshed.  Then returns `True` if the date supplied as an argument is during daylight hours, `False` otherwise.
 
+
+HueLight, HueBridge, and HueController classes are implemented to provide a simplified interface to the [Philips Hue API](http://www.developers.meethue.com/philips-hue-api).
+
 ###class hue.HueLight(*name, ID*)
 The HueLight class represents a single lamp connected to the bridge.  Instances of the HueLight class may be created and used seperately or (more conveniently) created for each light stored in the bridge by the constructor of a HueBridge object.  Various methods are implemented in order to control the lamp.
 
@@ -55,6 +58,24 @@ Switches the lamp on and adjusts the brightness to a minimum setting.
 
 ####hue.HueLight.save_state()
 Saves the current status of the lamp returned from the bridge into `self.state`.  May be used to e.g. reset lamp back to its previous on/off state after recalling a scene.  After calling this method `self.state['on']` is `True` if lamp was on, `False` if lamp was off when the method was called.
+
+###class hue.HueBridge(*username, IP*)
+Implements a simplified API for controlling lights connected to a Philips Hue bridge.  The constructor queries the bridge to obtain a list of connected lights.  These are stored in a dictionary self.lights, with light names as keys and corresponding HueLight objects as values.
+
+A whitelisted username on the bridge, and the IP address of the bridge must be supplied as arguments.
+
+Various methods are available to interact with the bridge and connected lights.  Lights can be accessed individually by name in HueBridge.lights, or collectively by iterating over the bridge.  E.g. to switch off all lights connected to the bridge, simply use:
+```python
+for light in bridge:
+	light.off()
+```
+
+####hue.HueBridge.get(light_name)
+Returns the HueLight object with the corresponding name `light_name`.  The light can then e.g. be switched on using `HueBridge.get(light_name).get().on()`.
+
+####hue.HueBridge.recall\_scene(scene\_id)
+Recalls a scene stored on the bridge with the given id.  Note that the scene is applied to all lamps connected to the bridge, and current on/off states are preserved.
+
 
 ##Issues
 - Verify registered beacons using UUID, Major & Minor ID
