@@ -1,3 +1,18 @@
+##Overview
+The goal of this project was to implement a practical system to switch on the Philips Hue lights in our house when either my girlfriend or I get home, and switch them off again when we're out.
+
+Although this can be done using the Philips Hue mobile app and 3rd-party services like IFTT, they can be slow to respond (we've fumbled for the lightswitch in the dark for a while before IFTT finally connects to the wifi and realises we're home) and neither really cope with the concept that more than one person might live in the same household (without some pretty ugly hacking).
+
+A more practical and elegant solution is to use [bluetooth beacon key fobs](https://www.beaconzone.co.uk/ibeacon/PC037-E) I picked up for £11 each.  In this project, I've used a Raspberry Pi 3 with a Bluetooth LE USB dongle (the built-in bluetooth controller is busy [managing the flic buttons we use as manual light switches](https://github.com/richardtguy/flic-hue)...) to listen for the advertisment packets from the beacons, and so keep track of who's at home.  If it hasn't heard from either beacon after a minute or so, it switches all the lights off - simple!
+
+We like to change the lighting scenes depending on the time of day (warm whites in the evening, cooler shades during the day).  In order to control the lights based on whether or not we're at home and sunrise and sunset times, I needed to expand the basic interface to the Hue bridge I implemented for the flic buttons.  This code runs on the Rasberry Pi and controls the lights directly via the API on the Hue bridge based on a set of rules defined read from a file on startup.  Now we can schedule lights to come on at certain times, but only if there's someone home.  And when we get home the lights come on in the appropriate scene for the time of day.
+
+The project is implemented using Python (and a shell script adapted from one I found [here](http://developer.radiusnetworks.com/ibeacon/idk/ibeacon_scan) by Radius Networks to parse the beacon advertisement packets).  The Python classes are documented below.
+
+Potential improvements:
+- It  might be possible to integrate the presence sensor directly woth the Hue bridge, so that rules implemented on the bridge itself could be aware of whether there's anyone home.  This would avoid having to run a controller to execute daily lighting schedules on the Pi.
+- Battery life of the beacons is likely to be an issue (<12 months), with unreliable detection when they get low leading to the lights cycling on and off...  I'll experiment with the advertisement frequency and the length of time to scan for beacons - higher frequency means more responsive and reliable detection, but shorter battery life.  Beacons are also available that broadcast their own battery level - I might implement a notification by email when they need a new battery.
+
 ##Usage
 An example implementation, including use of daylight and timer rules and a presence sensor, is included in `controller.py`.
 
