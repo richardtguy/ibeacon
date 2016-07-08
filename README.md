@@ -76,8 +76,40 @@ Returns the HueLight object with the corresponding name `light_name`.  The light
 ####hue.HueBridge.recall\_scene(scene\_id)
 Recalls a scene stored on the bridge with the given id.  Note that the scene is applied to all lamps connected to the bridge, and current on/off states are preserved.
 
+###class hue.HueController(*bridge, rules, daylight_sensor, presence_sensor=None*)
+The HueController class controls light settings based on a set of rules.  HueBridge and DaylightSensor objects (and optionally a PresenceSensor object) must be passed as arguments when the HueController instance is created.
+
+A single method is implemented as interface to the HueController.  Call the `tick()` method periodically to implement any rules for which the trigger time has been passed since the last call to `tick()`.  The class handles conversion between trigger times specified in local (UK) time and system time.
+
+####hue.HueController.tick()
+Action any rules for which the trigger time has passed since the last call to `tick()`.  Call this method periodically in a loop.
+
+###Rules
+Rules for triggering actions are read from a JSON formatted file when the HueController object is constructed.  The path to the file must be passed to the HueController object as an argument. No checking of the format or content of the rules is performed.
+
+| Field | Description |
+|:---|:---|
+| `trigger` | Either `daylight` in which case the action is triggered at sunrise or sunset, or `timer` where the action is triggered at a specified time. |
+| `time` | If `trigger` is set to `daylight`, `time` should be either sunrise or sunset.  The local sunrise/sunset times are obtained from the DaylightSensor object passed to the HueController. If the `trigger` is `timer`, then a local (UK) time should be specified in HH:MM format.|
+| `action` | `on`/`off` to switch selected lights on or off at the specified time, or `scene` to recall a scene on the bridge. |
+| `lights` (required if `action` is `on` or `off`) | The specified action is applied to the lights listed by name.  E.g. `["Hall 1", "Hall 2"]` Specifying an empty list `[]` applies the rule to all lights connected to the bridge. |
+| `scene` (required if `action` is `scene`) | The id of the scene stored on the bridge to be recalled. | 
+
+The example rule below switches all lights connected to the bridge on at sunset.
+
+```json
+{
+	"1": {
+		"trigger": "daylight",
+		"time": "sunset",
+		"action": "on",
+		"lights": []
+	}
+}
+```
 
 ##Issues
 - Verify registered beacons using UUID, Major & Minor ID
 - Monitor battery level of ibeacon (if available) and warn if low
 - Beacons may not be detected reliably if  disctance to receiver is large or SCAN_TIMEOUT is short, causing lights to cycle on and off while the house is occupied.  Experiment with extending the timeout period to 60s.
+- Allow for rules to be triggered at e.g. sunset+30 (30 minutes after sunset).
