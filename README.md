@@ -45,16 +45,16 @@ The argument `time` should be supplied as a `datetime` object in UTC.  If it has
 The HueLight class represents a single lamp connected to the bridge.  Instances of the HueLight class may be created and used seperately or (more conveniently) created for each light stored in the bridge by the constructor of a HueBridge object.  Various methods are implemented in order to control the lamp.
 
 ####hue.HueLight.on()
-	Switches the lamp on.  (Colour, brightness and other settings are unaffected.)
+Switches the lamp on.  (Colour, brightness and other settings are unaffected.)
 
 ####hue.HueLight.off()
-	Switches the lamp off.  (Colour, brightness and other settings are unaffected.)
+Switches the lamp off.  (Colour, brightness and other settings are unaffected.)
 
 ####hue.HueLight.dim()
-	Switches the lamp on and adjusts the brightness to a minimum setting.
+Switches the lamp on and adjusts the brightness to a minimum setting.
 
 ####hue.HueLight.save_state()
-Saves the current status of the lamp returned from the bridge into `self.state`.  May be used to e.g. reset lamp back to its previous on/off state after recalling a scene.  After calling this method `self.state[’on’]` is `True` if lamp was on, `False` if lamp was off when the method was called.
+Saves the current status of the lamp returned from the bridge into `self.state`.  May be used to e.g. reset lamp back to its previous on/off state after recalling a scene.  After calling this method `self.state['on']` is `True` if lamp was on, `False` if lamp was off when the method was called.
 
 ##Issues
 - Verify registered beacons using UUID, Major & Minor ID
