@@ -10,7 +10,7 @@ We like to change the lighting scenes depending on the time of day (warm whites 
 The project is implemented using Python (and a shell script adapted from one I found [here](http://developer.radiusnetworks.com/ibeacon/idk/ibeacon_scan) by Radius Networks to parse the beacon advertisement packets).  The Python classes are documented below.
 
 Potential improvements:
-- It  might be possible to integrate the presence sensor directly woth the Hue bridge, so that rules implemented on the bridge itself could be aware of whether there's anyone home.  This would avoid having to run a controller to execute daily lighting schedules on the Pi.
+- It  might be possible to integrate the presence sensor directly with the Hue bridge, so that rules implemented on the bridge itself could be aware of whether there's anyone home.  This would avoid having to run a controller to execute daily lighting schedules on the Pi.
 - Battery life of the beacons is likely to be an issue (<12 months), with unreliable detection when they get low leading to the lights cycling on and off...  I'll experiment with the advertisement frequency and the length of time to scan for beacons - higher frequency means more responsive and reliable detection, but shorter battery life.  Beacons are also available that broadcast their own battery level - I might implement a notification by email when they need a new battery.
 
 ##Usage
