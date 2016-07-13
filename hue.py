@@ -204,7 +204,7 @@ class HueController():
 			
 		# turn all lights off again if no-one is home
 		if self.presence_sensor != None:
-			if not self.presence_sensor.occupied():
+			if not self.presence_sensor.query():
 				self.logger.info('There\'s no-one home; switching lights off')
 				for light in self.bridge:
 					light.off()

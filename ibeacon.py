@@ -1,38 +1,71 @@
+import time, datetime, json, threading, os, signal, sys
+import subprocess
 import paho.mqtt.client as mqtt
-import config
-import time, datetime, json, threading, os, subprocess
 
 DEVNULL = open(os.devnull, 'wb')	# /dev/null
-
-
 
 class Scanner():
 	"""
 	Scan for ibeacon avertisement packets and publish to MQTT message broker
 	"""
 	def __init__(self, IP='localhost', port='1883', hci='hci0'):
-		# create and connect MQTT client object
-		self.client = mqtt.Client()
-		self.client.connect(IP, port=port)		
+		self.IP = IP
+		self.port = port
 		self.hci = hci
-		self.on = True
+				
+		# create MQTT client
+		self.mqttc = mqtt.Client()
+		self.mqttc.on_connect = self._on_connect
+		self.mqttc.on_disconnect = self._on_disconnect
+		
+		# signal handler to catch Ctrl-C
+		signal.signal(signal.SIGINT, self._exit_handler)
 		
 	def scan_forever(self):		
+		print("Starting iBeacon scanner, press [Ctrl+C] to exit.")
+		self.on = True
+
+		# connect to message broker
+		self.mqttc.connect(self.IP, self.port)
+	
 		# start scanning for bluetooth packets in subprocess
 		subprocess.Popen(['sudo', 'hcitool', '-i', self.hci, 'lescan', '--duplicates'], stdout=DEVNULL)
 
 		# start subprocesses in shell to dump and parse raw bluetooth packets
 		hcidump_args = ['hcidump', '--raw', '-i', self.hci]
 		parse_args = ['./ibeacon_parse.sh']
-		hcidump_p = subprocess.Popen(hcidump_args, stdout=subprocess.PIPE)
-		parse_p = subprocess.Popen(parse_args, stdout=subprocess.PIPE, stdin=hcidump_p.stdout, stderr=DEVNULL)
+		self.hcidump_p = subprocess.Popen(hcidump_args, stdout=subprocess.PIPE)
+		self.parse_p = subprocess.Popen(parse_args, stdout=subprocess.PIPE, stdin=self.hcidump_p.stdout, stderr=DEVNULL)
 
 		while self.on:
 			# read next ibeacon advertisement packet (blocking if nothing to read)
-			advert = parse_p.stdout.readline()
+			advert = self.parse_p.stdout.readline()
 			print(advert)
-			# publish ibeacon advertisment to MQTT broker
-			self.client.publish("ibeacon/adverts", advert)
+			# publish ibeacon advertisement to MQTT broker
+			self.mqttc.publish("ibeacon/adverts", advert)
+			self.mqttc.loop()			
+			
+	def _on_connect(self, client, userdata, flags, rc):
+		print("Connected to message broker with result code " + str(rc))
+			
+	def _on_disconnect(self, client, userdata, rc):
+		if rc != 0:
+			print('Unexpected disconnection!')
+		print('Disconnected from message broker')		
+	
+	def stop(self):
+		print('Stopping scanner...')
+		self.on = False
+		self.mqttc.disconnect()
+		self.hcidump_p.terminate()
+		self.hcidump_p.wait()
+		self.parse_p.terminate()
+		self.hcidump_p.wait()
+		print('Stopped')
+	
+	def _exit_handler(self, signal, frame):
+		self.stop()
+		sys.exit(0)
 
 
 class PresenceSensor():
@@ -45,38 +78,29 @@ class PresenceSensor():
 	  recently.
 	- Callback functions may be set for last-one-out and first-one-in events.
 	- PresenceSensor.query() method returns True if one or more registered beacons is 
-	  found, false otherwise
+	  found, False otherwise
 	"""
 	# define required iBeacon ID keys
 	BEACON_ID_KEYS = ("UUID", "Major", "Minor")
 	
 	def __init__(self, first_one_in_callback=None, last_one_out_callback=None, IP='localhost', port='1883', scan_timeout=30):
+		self.IP = IP
+		self.port = port
 		self.scan_timeout = scan_timeout
+		
+		# set callback functions (if supplied as arguments)
+		self.first_one_in_callback = first_one_in_callback
+		self.last_one_out_callback = last_one_out_callback
+		
 		self.registered_beacons = []		
 		self.occupied = False
 
 		# initialise MQTT client
-		self.client = mqtt.Client()
-		self.client.on_message = self._message_handler
-		self.client.on_connect = self._on_connect
-		self.client.on_disconnect = self._on_disconnect
-		self.client.connect(IP, port=port)
-
-		# set callback functions (if supplied as arguments)
-		self.first_one_in_callback = first_one_in_callback
-		self.last_one_out_callback = last_one_out_callback
-	
-	def _on_connect(self, client, userdata, flags, rc):
-		print("Connected to message broker with result code " + str(rc))
-		# Subscribing in on_connect() means that if we lose the connection and
-		# reconnect then subscriptions will be renewed.
-		self.client.subscribe("ibeacon/adverts")
-		
-	def _on_disconnect(self, client, userdata, rc):
-		if rc != 0:
-			print('Unexpected disconnection!')
-		print('Disconnected from message broker')		
-	
+		self.mqttc = mqtt.Client()
+		self.mqttc.on_connect = self._on_connect
+		self.mqttc.on_disconnect = self._on_disconnect		
+		self.mqttc.on_message = self._message_handler
+			
 	def register_beacon(self, beacon, owner):
 		# add beacon to list of registered beacons
 		for key in PresenceSensor.BEACON_ID_KEYS:
@@ -92,6 +116,7 @@ class PresenceSensor():
 
 	def start(self):
 		print("Starting Presence Sensor...")
+		self.mqttc.connect(self.IP, port=self.port)
 		self.on = True
 		# start non-blocking loop for presence sensor
 		self.thread = threading.Thread(target=self._loop)
@@ -102,12 +127,15 @@ class PresenceSensor():
 		self.on = False
 		self.thread.join()
 		# disconnect client object from MQTT server
-		self.client.disconnect()
+		self.mqttc.disconnect()
+
+	def query(self):
+		return self.occupied
 	
 	def _loop(self):
 		while self.on:
 			# loop MQTT client (blocking) to periodically check for messages
-			self.client.loop()	
+			self.mqttc.loop()	
 			# if no registered_key_fobs seen for > SCAN_TIMEOUT then set occupied = False and call last_one_out_callback()
 			now = datetime.datetime.now()
 			beacons_found = 0
@@ -117,7 +145,19 @@ class PresenceSensor():
 			if (beacons_found == 0) and (self.occupied):
 					self.occupied = False
 					self.last_one_out_callback()
+			time.sleep(0.1)
 
+	def _on_connect(self, client, userdata, flags, rc):
+		print("Connected to message broker with result code " + str(rc))
+		# Subscribing in on_connect() means that if we lose the connection and
+		# reconnect then subscriptions will be renewed.
+		self.mqttc.subscribe("ibeacon/adverts")
+		
+	def _on_disconnect(self, client, userdata, rc):
+		if rc != 0:
+			print('Unexpected disconnection!')
+		print('Disconnected from message broker')		
+	
 	def _message_handler(self, client, userdata, message):
 		# parse beacon IDs from message and fetch beacon from registered list
 		msg = json.loads(message.payload)
@@ -129,7 +169,7 @@ class PresenceSensor():
 		if (beacon != None):
 			# update last seen datetime
 			beacon['last_seen'] = datetime.datetime.now()
-			if config.DEBUG: print("Beacon %s seen at %s" % (beacon['ID'], beacon['last_seen']))
+			#print("Beacon %s seen at %s" % (beacon['ID'], beacon['last_seen'].strftime('%Y-%m-%d %H:%M:%S')))
 			if self.occupied == False:
 				self.occupied = True
 				self.first_one_in_callback()
@@ -139,44 +179,3 @@ class PresenceSensor():
 			if b['ID'] == beacon:
 				return b
 		return None
-
-	def occupied(self):
-		return self.occupied
-		
-
-"""
-Dummy classes for offline development
-"""
-
-class DummyMessage():
-	def __init__(self, payload):
-		self.payload = payload
-	
-class DummyMQTTClient():
-	def loop(self):
-		time.sleep(1)
-		message = DummyMessage('{"UUID": "aaa", "Major": "bbb", "Minor": "ccc", "RSSI": -27}')
-		self.on_message(None, None, message)
-		
-	def loop_start(self):
-		self.looping = True
-		self.thread = threading.Thread(target=self._loop_forever)
-		self.thread.start()
-	
-	def loop_stop(self):
-		self.looping = False
-		self.thread.join()
-	
-	def _loop_forever(self):
-		while self.looping:
-			self.loop()
-			
-	def connect(self, IP, port='1883'):
-		self.on_connect(None, None, None, 0)
-	
-	def disconnect(self):
-		pass
-	
-	def subscribe(self, topic):
-		pass
-

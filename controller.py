@@ -1,5 +1,7 @@
+# import built-in modules
+import datetime, time, threading, signal, sys
+# import local modules
 import ibeacon, hue, config
-import datetime, time
 
 # interlock to ensure that only one thread can access shared resources at a time
 lock = threading.Lock()
@@ -57,3 +59,4 @@ while True:
 	# use lock to ensure that any actions triggered are resolved before the HueController
 	# releases control to the PresenceSensor (or other child threads)
 	with lock: hue_controller.loop_once()
+	time.sleep(1)
