@@ -30,7 +30,7 @@ Potential improvements:
 ###class ibeacon.PresenceSensor()
 The `PresenceSensor` class provides a simple API to query whether the house is currently occupied, based on whether advertisement packets have recently been received from registered iBeacons associated with each member of the household.  The `query()` method returns `True` if the house is occupied (i.e. if any of the registered beacons are present), or `False` if none of the registered beacons have been detected for longer than the specified timeout.
 
-In addition, callback functions `PresenceSensor.last-one-out` and `PresenceSensor.first-one-in` may be specified.  When the house is occupied, PresenceSensor.last_one_out is called when none of the registered beacons have been detected for longer than the specified timeout, and the first-one-in callback is called immediateely when the first regoistered beacon is subsequently detected.
+In addition, callback functions `PresenceSensor.last-one-out` and `PresenceSensor.first-one-in` may be specified.  When the house is occupied, PresenceSensor.last_one_out is called when none of the registered beacons have been detected for longer than the specified timeout, and the first-one-in callback is called immediateely when the first registered beacon is subsequently detected.
 
 ####ibeacon.PresenceSensor.query()
 
@@ -90,7 +90,7 @@ Recalls a scene stored on the bridge with the given id.  Note that the scene is 
 ###class hue.HueController(*bridge, rules, daylight_sensor, presence_sensor=None*)
 The HueController class controls light settings based on a set of rules.  `bridge` and `daylight_sensor` objects must be passed as arguments when the HueController instance is created.  Optionally a `presence_sensor` object may be passed to make the bridge aware of whether or not anyone is home.  
 
-The bridge should be a `hue.HueBridge` object connected to an actual Hue bridge.  Implementation details of the daylight and presence sensors are unimportant, but the `daylight\_sensor` should expose a `daylight()` method that returns True during hours of daylight and False at night.  Similarly, the `presence\_sensor` object should expose a `query()` method returning True if the house is occupied, False if not. 
+The bridge should be a `hue.HueBridge` object connected to an actual Hue bridge.  Implementation details of the daylight and presence sensors are unimportant, but both should expose a `query()` method that returns True during hours of daylight and False at night for the daylight sensor and True if the house is occupied, False if not for the presence sensor. 
 
 A single method is implemented as interface to the HueController.  Call the `loop_once()` method periodically to implement any rules for which the trigger time has been passed since the last call to `loop_once()`.  The class handles conversion between trigger times specified in local (UK) time and system time.
 
