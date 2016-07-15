@@ -43,7 +43,7 @@ class DaylightSensor():
 
 		return {'sunrise': sunrise, 'sunset': sunset}
 		
-	def query(self, time):
+	def query(self, time=datetime.datetime.now()):
 		"""
 		Return True if in daylight hours, False if not
 		"""
