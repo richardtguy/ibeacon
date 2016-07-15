@@ -1,3 +1,5 @@
+__version__ = '1.0.0'
+
 class TerminalLog:
 
 	# ANSI escape codes for text colours

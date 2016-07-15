@@ -2,11 +2,15 @@ import time, datetime, json, threading, os, signal, sys
 import subprocess
 import paho.mqtt.client as mqtt
 
+__version__ = '1.0.0+'
+
 DEVNULL = open(os.devnull, 'wb')	# /dev/null
+PLATFORM = os.uname()[0]
 
 class Scanner():
 	"""
 	Scan for ibeacon avertisement packets and publish to MQTT message broker
+	Binaries and scripts are provided for linux (using bluez stack) or mac osx
 	"""
 	def __init__(self, IP='localhost', port='1883', hci='hci0'):
 		self.IP = IP
@@ -27,22 +31,31 @@ class Scanner():
 
 		# connect to message broker
 		self.mqttc.connect(self.IP, self.port)
-	
+		
 		# start scanning for bluetooth packets in subprocess
-		subprocess.Popen(['sudo', 'hcitool', '-i', self.hci, 'lescan', '--duplicates'], stdout=DEVNULL)
+		if os.uname()[0] == 'Linux':
+			self.lescan_p = subprocess.Popen(['sudo', 'hcitool', '-i', self.hci, 'lescan', '--duplicates'], stdout=DEVNULL)
 
-		# start subprocesses in shell to dump and parse raw bluetooth packets
-		hcidump_args = ['hcidump', '--raw', '-i', self.hci]
-		parse_args = ['./ibeacon_parse.sh']
-		self.hcidump_p = subprocess.Popen(hcidump_args, stdout=subprocess.PIPE)
-		self.parse_p = subprocess.Popen(parse_args, stdout=subprocess.PIPE, stdin=self.hcidump_p.stdout, stderr=DEVNULL)
+		# start subprocesses in shell to dump and parse raw bluetooth packets		
+		if PLATFORM == 'Linux':
+			hcidump_args = ['hcidump', '--raw', '-i', self.hci]
+			parse_args = ['./ibeacon_parse.sh']
+			self.hcidump_p = subprocess.Popen(hcidump_args, stdout=subprocess.PIPE)
+			self.parse_p = subprocess.Popen(parse_args, stdout=subprocess.PIPE, stdin=self.hcidump_p.stdout, stderr=DEVNULL)
+
+		elif PLATFORM == 'Darwin':
+			parse_args = ['./ibeacon_scan']
+		else:
+			print("Platform not supported")
+
+		self.parse_p = subprocess.Popen(parse_args, stdout=subprocess.PIPE, stderr=DEVNULL)
 
 		while self.on:
 			# read next ibeacon advertisement packet (blocking if nothing to read)
 			advert = self.parse_p.stdout.readline()
-			print(advert)
 			# publish ibeacon advertisement to MQTT broker
 			self.mqttc.publish("ibeacon/adverts", advert)
+			print(advert)
 			self.mqttc.loop()			
 			
 	def _on_connect(self, client, userdata, flags, rc):
@@ -54,20 +67,24 @@ class Scanner():
 			time.sleep(5)
 			print('Reconnecting...')
 			self.mqttc.reconnect()
-		print('Disconnected from message broker')		
+		else:
+			print('Disconnected from message broker')		
 	
-	def stop(self):
+	def _stop(self):
 		print('Stopping scanner...')
 		self.on = False
 		self.mqttc.disconnect()
-		self.hcidump_p.terminate()
-		self.hcidump_p.wait()
+		if PLATFORM == 'Linux':
+			self.lescan_p.terminate()
+			self.hcidump_p.terminate()
+			self.lescan_p.wait()
+			self.hcidump_p.wait()
 		self.parse_p.terminate()
-		self.hcidump_p.wait()
+		self.parse_p.wait()
 		print('Stopped')
 	
 	def _exit_handler(self, signal, frame):
-		self.stop()
+		self._stop()
 		sys.exit(0)
 
 

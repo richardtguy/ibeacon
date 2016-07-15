@@ -2,6 +2,8 @@ import requests, json, datetime, calendar, subprocess, signal
 import log
 import config
 
+__version__ = '1.1.0'
+
 """
 HueBridge and HueLight objects are not threadsafe, so use locks to ensure only one process
 can access these at a time (e.g. when iterating over the bridge).

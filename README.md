@@ -17,6 +17,10 @@ Potential improvements:
 - Battery life of the beacons is likely to be an issue (<12 months), with unreliable detection when they get low leading to the lights cycling on and off...  I'll experiment with the advertisement frequency and the length of time to scan for beacons - higher frequency means more responsive and reliable detection, but shorter battery life.  Beacons are also available that broadcast their own battery level - I might implement a notification by email when they need a new battery.
 
 ##Usage
+- Start MQTT message broker on `localhost`
+OSX:	`/usr/local/sbin/mosquitto`
+Linux:	
+
 - Start scanning for ibeacon advertisements.
 `$ sudo python start_scanner.py`
 
@@ -26,6 +30,7 @@ Potential improvements:
 ##Documentation
 
 ###class ibeacon.Scanner(*IP='localhost', port='1883', hci='hci0'*)
+On Linux the `hcitools` command `lescan` is used to start scanning for bluetooth packets (using the `--duplicates` option to catch repeated advertisements from the same beacons).  The script then runs `hcidump --raw`, and pipes the output through a bash script that parses the raw stream into ibeacon advertisements in JSON format.  An experimental binary is provided to scan and parse the packets OSX into the same format, but performance is currently poor. 
 
 ####ibeacon.Scanner.scan_forever()
 
