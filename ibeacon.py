@@ -51,6 +51,9 @@ class Scanner():
 	def _on_disconnect(self, client, userdata, rc):
 		if rc != 0:
 			print('Unexpected disconnection!')
+			time.sleep(5)
+			print('Reconnecting...')
+			self.mqttc.reconnect()
 		print('Disconnected from message broker')		
 	
 	def stop(self):
