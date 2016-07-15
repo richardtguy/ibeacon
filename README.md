@@ -25,7 +25,10 @@ Potential improvements:
 
 ##Documentation
 
-###class ibeacon.Scanner()
+###class ibeacon.Scanner(*IP='localhost', port='1883', hci='hci0'*)
+
+####ibeacon.Scanner.scan_forever()
+
 
 ###class ibeacon.PresenceSensor(*first_one_in_callback=None, last_one_out_callback=None, IP='localhost', port='1883', scan_timeout=60*)
 The `PresenceSensor` class provides a simple API to query whether the house is currently occupied, based on whether advertisement packets have recently been received from registered iBeacons associated with each member of the household.  The `query()` method returns `True` if the house is occupied (i.e. if any of the registered beacons are present), or `False` if none of the registered beacons have been detected for longer than the specified timeout.
