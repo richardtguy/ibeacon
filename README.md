@@ -35,7 +35,7 @@ The `PresenceSensor` class provides a simple API to query whether the house is c
 
 The PresenceSensor subscribes to the `ibeacon/adverts` topic to receive ibeacon advertisements from the Scanner object via n MQTT message broker.  The IP address and port for the broker may be supplied as arguments.
 
-In addition, callback functions `PresenceSensor.last-one-out` and `PresenceSensor.first-one-in` may be specified.  When the house is occupied, PresenceSensor.last_one_out is called when none of the registered beacons have been detected for longer than the specified `scan_timeout` in seconds, and the first-one-in callback is called immediateely when the first registered beacon is subsequently detected.
+In addition, callback functions `PresenceSensor.last-one-out` and `PresenceSensor.first-one-in` may be specified.  When the house is occupied, PresenceSensor.last_one_out is called when none of the registered beacons have been detected for longer than the specified `scan_timeout` in seconds, and the first-one-in callback is called immediately when the first registered beacon is subsequently detected.
 
 ####ibeacon.PresenceSensor.query()
 Return True is house is occupied, False if none of the registered beacons have been detected for more than `self.scan_timeout` seconds (default = 60 seconds).
