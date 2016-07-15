@@ -4,7 +4,7 @@ Presence monitoring using iBeacons and Raspberry Pi to control smart lights at h
 ##Overview
 The goal of this project was to implement a practical system to switch on the Philips Hue lights in our house when either my girlfriend or I get home, and switch them off again when we're out.
 
-Although this can be done using the Philips Hue mobile app and 3rd-party services like IFTT, they can be slow to respond (we've fumbled for the lightswitch in the dark for a while before IFTT finally connects to the wifi and realises we're home) and neither really cope with the concept that more than one person might live in the same household (without some pretty ugly hacking).
+Although this can be done using the Philips Hue mobile app and 3rd-party services like IFTTT, they can be slow to respond (we've fumbled for the lightswitch in the dark for a while before the IFTTT app on my phone finally connected to the wifi and realised we're home) and neither really cope with the concept that more than one person might live in the same household (without some pretty ugly hacking).
 
 A more practical and elegant solution is to use [bluetooth beacon key fobs](https://www.beaconzone.co.uk/ibeacon/PC037-E) I picked up for £11 each.  In this project, I've used a Raspberry Pi 3 with a Bluetooth LE USB dongle (the built-in bluetooth controller is busy [managing the flic buttons we use as manual light switches](https://github.com/richardtguy/flic-hue)...) to listen for the advertisment packets from the beacons, and so keep track of who's at home.  If it hasn't heard from either beacon after a minute or so, it switches all the lights off - simple!
 
@@ -88,9 +88,11 @@ Returns the HueLight object with the corresponding name `light_name`.  The light
 Recalls a scene stored on the bridge with the given id.  Note that the scene is applied to all lamps connected to the bridge, and current on/off states are preserved.
 
 ###class hue.HueController(*bridge, rules, daylight_sensor, presence_sensor=None*)
-The HueController class controls light settings based on a set of rules.  HueBridge and DaylightSensor objects (and optionally a PresenceSensor object) must be passed as arguments when the HueController instance is created.
+The HueController class controls light settings based on a set of rules.  `bridge` and `daylight_sensor` objects must be passed as arguments when the HueController instance is created.  Optionally a `presence_sensor` object may be passed to make the bridge aware of whether or not anyone is home.  
 
-A single method is implemented as interface to the HueController.  Call the `tick()` method periodically to implement any rules for which the trigger time has been passed since the last call to `tick()`.  The class handles conversion between trigger times specified in local (UK) time and system time.
+The bridge should be a `hue.HueBridge` object connected to an actual Hue bridge.  Implementation details of the daylight and presence sensors are unimportant, but the `daylight\_sensor` should expose a `daylight()` method that returns True during hours of daylight and False at night.  Similarly, the `presence\_sensor` object should expose a `query()` method returning True if the house is occupied, False if not. 
+
+A single method is implemented as interface to the HueController.  Call the `loop_once()` method periodically to implement any rules for which the trigger time has been passed since the last call to `loop_once()`.  The class handles conversion between trigger times specified in local (UK) time and system time.
 
 ####hue.HueController.loop_once()
 Action any rules for which the trigger time has passed since the last call to `loop_once()`.  Call this method periodically in a loop.
