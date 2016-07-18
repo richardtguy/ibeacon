@@ -17,9 +17,7 @@ Potential improvements:
 - Battery life of the beacons is likely to be an issue (<12 months), with unreliable detection when they get low leading to the lights cycling on and off...  I'll experiment with the advertisement frequency and the length of time to scan for beacons - higher frequency means more responsive and reliable detection, but shorter battery life.  Beacons are also available that broadcast their own battery level - I might implement a notification by email when they need a new battery.
 
 ##Usage
-- Start MQTT message broker on `localhost`
-OSX:	`/usr/local/sbin/mosquitto`
-Linux:	
+- Start MQTT message broker on `localhost` (OSX: `/usr/local/sbin/mosquitto`, Linux: `sudo /etc/init.d/mosquitto start`)
 
 - Start scanning for ibeacon advertisements.
 `$ sudo python start_scanner.py`
