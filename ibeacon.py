@@ -35,7 +35,7 @@ class Scanner():
 		self.on = True
 
 		# connect to message broker
-		self.mqttc.connect(self.IP, self.port, keepalive=30)
+		self.mqttc.connect(self.IP, self.port, keepalive=300)
 		
 		# start scanning for bluetooth packets in subprocess
 		if os.uname()[0] == 'Linux':
@@ -66,7 +66,7 @@ class Scanner():
 				pass
 			self.mqttc.loop()			
 	
-	@timeout.timeout(10)	
+	@timeout.timeout(30)	
 	def _readline(self):
 		# blocks if no advert available to read, so wrap with timeout to ensure MQTT client loop is called regularly
 		advert = self.parse_p.stdout.readline()
