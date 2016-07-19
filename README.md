@@ -28,10 +28,10 @@ Potential improvements:
 ##Documentation
 
 ###class ibeacon.Scanner(*IP='localhost', port='1883', hci='hci0'*)
-On Linux the `hcitools` command `lescan` is used to start scanning for bluetooth packets (using the `--duplicates` option to catch repeated advertisements from the same beacons).  The script then runs `hcidump --raw`, and pipes the output through a bash script that parses the raw stream into ibeacon advertisements in JSON format.  An experimental binary is provided on OSX to scan and parse the packets into the same format, but performance is currently poor. 
+On Linux the `hcitools` command `lescan` is used to start scanning for bluetooth packets (using the `--duplicates` option to catch repeated advertisements from the same beacons).  The script then runs `hcidump --raw`, and pipes the output through a bash script that parses the raw stream into ibeacon advertisements in JSON format.  The scanner publishes the adverts to an MQTT message broker on the topic `ibeacon/adverts`.  The IP address and port of the broker, which may be supplied as arguments, default to `localhost:1883`.  An experimental binary is provided on OSX to scan and parse the packets into the same format, but response times are currently much slower than on Linux. 
 
 ####ibeacon.Scanner.scan_forever()
-
+Start the scanner by calling the method `scan_forever()`.  This method is blocking.
 
 ###class ibeacon.PresenceSensor(*first_one_in_callback=None, last_one_out_callback=None, IP='localhost', port='1883', scan_timeout=60*)
 The `PresenceSensor` class provides a simple API to query whether the house is currently occupied, based on whether advertisement packets have recently been received from registered iBeacons associated with each member of the household.  The `query()` method returns `True` if the house is occupied (i.e. if any of the registered beacons are present), or `False` if none of the registered beacons have been detected for longer than the specified timeout.
@@ -43,23 +43,17 @@ In addition, callback functions `PresenceSensor.last-one-out` and `PresenceSenso
 ####ibeacon.PresenceSensor.query()
 Return True is house is occupied, False if none of the registered beacons have been detected for more than `self.scan_timeout` seconds (default = 60 seconds).
 
-####ibeacon.PresenceSensor.register_beacon(*UUID, MajorID, MinorID*)
-Add a beacon to the list of registered beacons in the household, by supplying the IDs of a new beacon as strings.
+####ibeacon.PresenceSensor.register_beacon(*beacon, owner*)
+Add a beacon to the list of registered beacons in the household, by supplying the IDs of a new beacon as a dictionary with keys `UUID`, `MajorID` & `MinorID` and the owner of the beacon as a string.
 
-####ibeacon.PresenceSensor.deregister_beacon(*UUID, MajorID, MinorID*)
+####ibeacon.PresenceSensor.deregister_beacon(*beacon*)
 Remove the given beacon from the list of registered beacons in the household.
 
 ###class hue.DaylightSensor(*lat, lng*)
-The DaylightSensor class provides a simple API to query whether a time supplied as an argument is within daylight hours. On initialisation, the constructor method queries the [sunrise-sunset.org](http://www.sunrise-sunset.org) API to obtain the sunset and sunrise times (UTC) for today at the location specifided by the latitute and longitude coordinates supplied as arguments.
-
-The following  configuration parameters may be supplied in `config.py`:
-
-Parameter | Description
-:---|:---
-`DAYLIGHT_UPDATE_FREQUENCY` (default=24) | Time between updating daylight times from [sunrise-sunset.org](http://www.sunrise-sunset.org).
+The DaylightSensor class provides a simple API to query whether a time supplied as an argument is within daylight hours. On initialisation, the constructor method queries the [sunrise-sunset.org](http://www.sunrise-sunset.org) API to obtain the sunset and sunrise times (UTC) for today at the location specifided by the latitute and longitude coordinates supplied as arguments.  The daylight times are updated every 24 hours.
 
 ####hue.DaylightSensor.query(*time*)
-The argument `time` should be supplied as a `datetime` object in UTC.  If it has been more than `DAYLIGHT_UPDATE_FREQUENCY` hours since daylight times were last refreshed from [sunrise-sunset.org](http://www.sunrise-sunset.org), these are refreshed.  Then returns `True` if the date supplied as an argument is during daylight hours, `False` otherwise.
+The argument `time` should be supplied as a `datetime` object in UTC (defaults to now if omitted).  If it has been more than 24 hours since daylight times were last refreshed from [sunrise-sunset.org](http://www.sunrise-sunset.org), these are refreshed.  Then returns `True` if the date supplied as an argument is during daylight hours, `False` otherwise.
 
 
 HueLight, HueBridge, and HueController classes are implemented to provide a simplified interface to the [Philips Hue API](http://www.developers.meethue.com/philips-hue-api).
@@ -116,8 +110,9 @@ Rules for triggering actions are read from a JSON formatted file when the HueCon
 | `action` | `on`/`off` to switch selected lights on or off at the specified time, or `scene` to recall a scene on the bridge. |
 | `lights` (required if `action` is `on` or `off`) | The specified action is applied to the lights listed by name.  E.g. `["Hall 1", "Hall 2"]` Specifying an empty list `[]` applies the rule to all lights connected to the bridge. |
 | `scene` (required if `action` is `scene`) | The id of the scene stored on the bridge to be recalled. | 
+| `days` (optional) | Days of the week on which to apply rule supplied as a bitmask i.e. 1111100 for weekdays. |
 
-The example rule below switches all lights connected to the bridge on at sunset.
+The example rule below is applied only on Wednesdays, and switches all lights connected to the bridge on at sunset.
 
 ```json
 {
@@ -125,7 +120,8 @@ The example rule below switches all lights connected to the bridge on at sunset.
 		"trigger": "daylight",
 		"time": "sunset",
 		"action": "on",
-		"lights": []
+		"lights": [],
+		"days": "0010000"
 	}
 }
 ```
