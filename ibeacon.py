@@ -1,8 +1,13 @@
-import time, datetime, json, threading, os, signal, sys
-import subprocess
+# Built-in modules
+import time, datetime, json, threading, os, signal, sys, subprocess
+
+# Installed modules
 import paho.mqtt.client as mqtt
 
-__version__ = '1.0.0+'
+# Local modules
+import timeout
+
+__version__ = '1.0.1'
 
 DEVNULL = open(os.devnull, 'wb')	# /dev/null
 PLATFORM = os.uname()[0]
@@ -30,7 +35,7 @@ class Scanner():
 		self.on = True
 
 		# connect to message broker
-		self.mqttc.connect(self.IP, self.port)
+		self.mqttc.connect(self.IP, self.port, keepalive=30)
 		
 		# start scanning for bluetooth packets in subprocess
 		if os.uname()[0] == 'Linux':
@@ -38,32 +43,41 @@ class Scanner():
 
 		# start subprocesses in shell to dump and parse raw bluetooth packets		
 		if PLATFORM == 'Linux':
+			print("Running on Linux...")
 			hcidump_args = ['hcidump', '--raw', '-i', self.hci]
 			parse_args = ['./ibeacon_parse.sh']
 			self.hcidump_p = subprocess.Popen(hcidump_args, stdout=subprocess.PIPE)
 			self.parse_p = subprocess.Popen(parse_args, stdout=subprocess.PIPE, stdin=self.hcidump_p.stdout, stderr=DEVNULL)
 
 		elif PLATFORM == 'Darwin':
+			print("Running on OSX...")
 			parse_args = ['./ibeacon_scan']
+			self.parse_p = subprocess.Popen(parse_args, stdout=subprocess.PIPE, stderr=DEVNULL)
 		else:
 			print("Platform not supported")
 
-		self.parse_p = subprocess.Popen(parse_args, stdout=subprocess.PIPE, stderr=DEVNULL)
-
 		while self.on:
 			# read next ibeacon advertisement packet (blocking if nothing to read)
-			advert = self.parse_p.stdout.readline()
-			# publish ibeacon advertisement to MQTT broker
-			self.mqttc.publish("ibeacon/adverts", advert)
-			print(advert)
+			try:
+				advert = self._readline()
+				# publish ibeacon advertisement to MQTT broker
+				self.mqttc.publish("ibeacon/adverts", advert)
+			except timeout.TimeoutException:
+				pass
 			self.mqttc.loop()			
-			
+	
+	@timeout.timeout(10)	
+	def _readline(self):
+		# blocks if no advert available to read, so wrap with timeout to ensure MQTT client loop is called regularly
+		advert = self.parse_p.stdout.readline()
+		return advert
+	
 	def _on_connect(self, client, userdata, flags, rc):
 		print("Connected to message broker with result code " + str(rc))
 			
 	def _on_disconnect(self, client, userdata, rc):
 		if rc != 0:
-			print('Unexpected disconnection!')
+			print('Unexpected disconnection! (%s)' % (rc))
 			time.sleep(5)
 			print('Reconnecting...')
 			self.mqttc.reconnect()
@@ -103,7 +117,7 @@ class PresenceSensor():
 	# define required iBeacon ID keys
 	BEACON_ID_KEYS = ("UUID", "Major", "Minor")
 	
-	def __init__(self, first_one_in_callback=None, last_one_out_callback=None, IP='localhost', port='1883', scan_timeout=30):
+	def __init__(self, first_one_in_callback=None, last_one_out_callback=None, IP='localhost', port='1883', scan_timeout=datetime.timedelta(seconds=30)):
 		self.IP = IP
 		self.port = port
 		self.scan_timeout = scan_timeout
@@ -175,7 +189,7 @@ class PresenceSensor():
 		
 	def _on_disconnect(self, client, userdata, rc):
 		if rc != 0:
-			print('Unexpected disconnection!')
+			print('Unexpected disconnection! (%s)' % (rc))
 		print('Disconnected from message broker')		
 	
 	def _message_handler(self, client, userdata, message):
@@ -189,7 +203,7 @@ class PresenceSensor():
 		if (beacon != None):
 			# update last seen datetime
 			beacon['last_seen'] = datetime.datetime.now()
-			#print("Beacon %s seen at %s" % (beacon['ID'], beacon['last_seen'].strftime('%Y-%m-%d %H:%M:%S')))
+			print("Beacon %s seen at %s" % (beacon['ID'], beacon['last_seen'].strftime('%Y-%m-%d %H:%M:%S')))
 			if self.occupied == False:
 				self.occupied = True
 				self.first_one_in_callback()
