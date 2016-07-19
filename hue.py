@@ -2,11 +2,14 @@ import requests, json, datetime, calendar, subprocess, signal
 import log
 import config
 
-__version__ = '1.1.0'
+__version__ = '1.1.2'
 
 """
 HueBridge and HueLight objects are not threadsafe, so use locks to ensure only one process
 can access these at a time (e.g. when iterating over the bridge).
+v1.1.1	Added option to filter rules by days of the week
+v1.1.0	Added HueController & DaylightSensor classes
+v1.0.0	HueLight & HueBridge classes
 """
 
 class DaylightSensor():
@@ -36,10 +39,14 @@ class DaylightSensor():
 		Return sunrise and sunset times from sunrise-sunset.org as datetime objects
 		"""
 		payload = {'lat': self.lat, 'lng': self.lng, 'date': date.isoformat()}
-		r = requests.get('http://api.sunrise-sunset.org/json', params=payload)
-		sunrise_str = r.json()['results']['sunrise']
-		sunset_str = r.json()['results']['sunset']
-			
+		try:
+			r = requests.get('http://api.sunrise-sunset.org/json', params=payload, timeout=5)
+			r.raise_for_status()
+			sunrise_str = r.json()['results']['sunrise']
+			sunset_str = r.json()['results']['sunset']
+		except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError) as err:
+			self.logger.warning("Failed to update daylight times! (%s)" % (err))
+			return self.daylight_times
 		sunrise = datetime.datetime.strptime(sunrise_str,'%I:%M:%S %p').replace(date.year, date.month, date.day)
 		sunset = datetime.datetime.strptime(sunset_str,'%I:%M:%S %p').replace(date.year, date.month, date.day)
 
@@ -164,20 +171,29 @@ class HueController():
 
 		# run rules
 		for rule in self.rules.values():
-			# daylight rules
-			if (rule['trigger'] == 'daylight'):
-				if self.last_tick_daylight != daylight:
-					if (rule['time'] == 'sunset') and not daylight:
+			# check rule applies today
+			if self._check_weekday(rule):
+				# daylight rules
+				if (rule['trigger'] == 'daylight'):
+					if self.last_tick_daylight != daylight:
+						if (rule['time'] == 'sunset') and not daylight:
+							self._apply_action(rule)
+						if (rule['time'] == 'sunrise') and daylight:
+							self._apply_action(rule)
+				# timer rules
+				else:
+					if (self.last_tick < rule['time'] + self.tz.utcoffset(rule['time'])) and (now > rule['time']  + self.tz.utcoffset(rule['time'])):
 						self._apply_action(rule)
-					if (rule['time'] == 'sunrise') and daylight:
-						self._apply_action(rule)
-			# timer rules
-			else:
-				if (self.last_tick < rule['time'] + self.tz.utcoffset(rule['time'])) and (now > rule['time']  + self.tz.utcoffset(rule['time'])):
-					self._apply_action(rule)
 		
 		self.last_tick = now
 		self.last_tick_daylight = daylight
+
+	def _check_weekday(self, rule, today=datetime.datetime.today()):
+		try:
+			if rule['days'][today.weekday()] == '1': return True
+			else: return False
+		except KeyError:
+			return True
 	
 	def _apply_action(self, rule):
 		"""
