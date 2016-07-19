@@ -28,7 +28,7 @@ Potential improvements:
 ##Documentation
 
 ###class ibeacon.Scanner(*IP='localhost', port='1883', hci='hci0'*)
-On Linux the `hcitools` command `lescan` is used to start scanning for bluetooth packets (using the `--duplicates` option to catch repeated advertisements from the same beacons).  The script then runs `hcidump --raw`, and pipes the output through a bash script that parses the raw stream into ibeacon advertisements in JSON format.  An experimental binary is provided to scan and parse the packets OSX into the same format, but performance is currently poor. 
+On Linux the `hcitools` command `lescan` is used to start scanning for bluetooth packets (using the `--duplicates` option to catch repeated advertisements from the same beacons).  The script then runs `hcidump --raw`, and pipes the output through a bash script that parses the raw stream into ibeacon advertisements in JSON format.  An experimental binary is provided on OSX to scan and parse the packets into the same format, but performance is currently poor. 
 
 ####ibeacon.Scanner.scan_forever()
 
