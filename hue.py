@@ -40,7 +40,7 @@ class DaylightSensor():
 		"""
 		payload = {'lat': self.lat, 'lng': self.lng, 'date': date.isoformat()}
 		try:
-			r = requests.get('http://api.sunrise-sunset.org/json', params=payload, timeout=5)
+			r = requests.get('http://api.sunrise-sunset.org/json', params=payload, timeout=30)
 			r.raise_for_status()
 			sunrise_str = r.json()['results']['sunrise']
 			sunset_str = r.json()['results']['sunset']
