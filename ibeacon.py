@@ -75,6 +75,7 @@ class Scanner():
 	
 	def _on_connect(self, client, userdata, flags, rc):
 		print("Connected to message broker with result code " + str(rc))
+		print("Publishing to %s" % (self.topic))
 			
 	def _on_disconnect(self, client, userdata, rc):
 		if rc != 0:
@@ -187,6 +188,7 @@ class PresenceSensor():
 		print("Connected to message broker with result code " + str(rc))
 		# Subscribing in on_connect() means that if we lose the connection and
 		# reconnect then subscriptions will be renewed.
+		print('Subscribing to %s' % (self.topic))
 		self.mqttc.subscribe(self.topic)
 		
 	def _on_disconnect(self, client, userdata, rc):
