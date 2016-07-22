@@ -17,10 +17,11 @@ class Scanner():
 	Scan for ibeacon avertisement packets and publish to MQTT message broker
 	Binaries and scripts are provided for linux (using bluez stack) or mac osx
 	"""
-	def __init__(self, IP='localhost', port='1883', hci='hci0'):
+	def __init__(self, IP='localhost', port='1883', hci='hci0', topic='ibeacon/adverts'):
 		self.IP = IP
 		self.port = port
 		self.hci = hci
+		self.topic = topic
 				
 		# create MQTT client
 		self.mqttc = mqtt.Client()
@@ -61,7 +62,7 @@ class Scanner():
 			try:
 				advert = self._readline()
 				# publish ibeacon advertisement to MQTT broker
-				self.mqttc.publish("ibeacon/adverts", advert)
+				self.mqttc.publish(self.topic, advert)
 			except timeout.TimeoutException:
 				pass
 			self.mqttc.loop()			
@@ -117,10 +118,11 @@ class PresenceSensor():
 	# define required iBeacon ID keys
 	BEACON_ID_KEYS = ("UUID", "Major", "Minor")
 	
-	def __init__(self, first_one_in_callback=None, last_one_out_callback=None, IP='localhost', port='1883', scan_timeout=datetime.timedelta(seconds=30)):
+	def __init__(self, first_one_in_callback=None, last_one_out_callback=None, IP='localhost', port='1883', topic='ibeacon/adverts', scan_timeout=datetime.timedelta(seconds=30)):
 		self.IP = IP
 		self.port = port
 		self.scan_timeout = scan_timeout
+		self.topic = topic
 		
 		# set callback functions (if supplied as arguments)
 		self.first_one_in_callback = first_one_in_callback
@@ -185,7 +187,7 @@ class PresenceSensor():
 		print("Connected to message broker with result code " + str(rc))
 		# Subscribing in on_connect() means that if we lose the connection and
 		# reconnect then subscriptions will be renewed.
-		self.mqttc.subscribe("ibeacon/adverts")
+		self.mqttc.subscribe(self.topic)
 		
 	def _on_disconnect(self, client, userdata, rc):
 		if rc != 0:
@@ -203,7 +205,7 @@ class PresenceSensor():
 		if (beacon != None):
 			# update last seen datetime
 			beacon['last_seen'] = datetime.datetime.now()
-			print("Beacon %s seen at %s" % (beacon['ID'], beacon['last_seen'].strftime('%Y-%m-%d %H:%M:%S')))
+			#print("Beacon %s seen at %s" % (beacon['ID'], beacon['last_seen'].strftime('%Y-%m-%d %H:%M:%S')))
 			if self.occupied == False:
 				self.occupied = True
 				self.first_one_in_callback()
