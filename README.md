@@ -85,15 +85,15 @@ for light in bridge:
 ```
 
 ####hue.HueBridge.get(light_name)
-Returns the HueLight object with the corresponding name `light_name`.  The light can then e.g. be switched on using `HueBridge.get(light_name).get().on()`.
+Returns the HueLight object with the corresponding name `light_name`.  The light can then e.g. be switched on using `HueBridge.get(light_name).on()`.
 
 ####hue.HueBridge.recall\_scene(scene\_id)
 Recalls a scene stored on the bridge with the given id.  Note that the scene is applied to all lamps connected to the bridge, and current on/off states are preserved.
 
 ###class hue.HueController(*bridge, rules, daylight_sensor, presence_sensor=None*)
-The HueController class controls light settings based on a set of rules.  `bridge` and `daylight_sensor` objects must be passed as arguments when the HueController instance is created.  Optionally a `presence_sensor` object may be passed to make the bridge aware of whether or not anyone is home.  
+The HueController class controls light settings based on a set of rules.  `bridge` and `daylight_sensor` objects must be passed as arguments when the HueController instance is created.  Optionally a `presence_sensor` object may be passed to make the controller aware of whether or not anyone is home.  
 
-The bridge should be a `hue.HueBridge` object connected to an actual Hue bridge.  Implementation details of the daylight and presence sensors are unimportant, but both should expose a `query()` method that returns True during hours of daylight and False at night for the daylight sensor and True if the house is occupied, False if not for the presence sensor. 
+The bridge should be a `hue.HueBridge` object representing an actual Hue bridge.  Implementation details of the daylight and presence sensors are unimportant, but both should expose a `query()` method that returns True during hours of daylight and False at night for the daylight sensor and True if the house is occupied, False if not for the presence sensor. 
 
 A single method is implemented as interface to the HueController.  Call the `loop_once()` method periodically to implement any rules for which the trigger time has been passed since the last call to `loop_once()`.  The class handles conversion between trigger times specified in local (UK) time and system time.
 
