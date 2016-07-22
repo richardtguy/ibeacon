@@ -119,7 +119,7 @@ class PresenceSensor():
 	# define required iBeacon ID keys
 	BEACON_ID_KEYS = ("UUID", "Major", "Minor")
 	
-	def __init__(self, first_one_in_callback=None, last_one_out_callback=None, IP='localhost', port='1883', topic='ibeacon/adverts', scan_timeout=datetime.timedelta(seconds=30)):
+	def __init__(self, first_one_in_callback=None, last_one_out_callback=None, IP='localhost', port='1883', topic='ibeacon/adverts', scan_timeout=datetime.timedelta(seconds=300)):
 		self.IP = IP
 		self.port = port
 		self.scan_timeout = scan_timeout
