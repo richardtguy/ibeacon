@@ -1,5 +1,5 @@
 # import built-in modules
-import datetime, time, threading, signal, sys
+import datetime, time, threading, signal, sys, random
 # import local modules
 import ibeacon, hue, config
 
@@ -12,6 +12,15 @@ def exit_handler(signal, frame):
 	presence_sensor.stop()
 	sys.exit(0)
 signal.signal(signal.SIGINT, exit_handler)
+
+# generate random ID
+def get_ID(alphabet='abcdefghijklmnopqrstuvwxyz0123456789', length=8):
+	ID = ''
+	for c in range(length):
+		rand_index = random.randrange(len(alphabet))
+		char = alphabet[rand_index]
+		ID = ID + char
+	return ID
 
 
 # these functions are called by the PresenceSensor on last-one-out or first-one-in events
@@ -40,8 +49,11 @@ bridge = hue.HueBridge(username=config.HUE_USERNAME, IP=config.HUE_IP_ADDRESS)
 # initialise daylight sensor (daylight times from sunrise-sunset.org API)
 daylight_sensor = hue.DaylightSensor(config.LATITUDE, config.LONGITUDE)
 
+# generate practically unique message topic for pub/sub ibeacon advertisements
+topic = 'ibeacon/' + get_ID(length=5)
+
 # initialise presence sensor and register beacons
-presence_sensor = ibeacon.PresenceSensor(first_one_in_callback=welcome_home, last_one_out_callback=bye, scan_timeout=config.SCAN_TIMEOUT)
+presence_sensor = ibeacon.PresenceSensor(first_one_in_callback=welcome_home, last_one_out_callback=bye, topic='ibeacon/abc12', scan_timeout=config.SCAN_TIMEOUT)
 beacon1 = {"UUID": "FDA50693-A4E2-4FB1-AFCF-C6EB07647825", "Major": "10004", "Minor": "54480"}
 beacon2 = {"UUID": "FDA50693-A4E2-4FB1-AFCF-C6EB07647825", "Major": "10004", "Minor": "54481"}
 print(presence_sensor.register_beacon(beacon1, "Richard"))
