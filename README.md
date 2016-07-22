@@ -33,15 +33,15 @@ On Linux the `hcitools` command `lescan` is used to start scanning for bluetooth
 ####ibeacon.Scanner.scan_forever()
 Start the scanner by calling the method `scan_forever()`.  This method is blocking.
 
-###class ibeacon.PresenceSensor(*first_one_in_callback=None, last_one_out_callback=None, IP='localhost', port='1883', scan_timeout=60*)
+###class ibeacon.PresenceSensor(*first_one_in_callback=None, last_one_out_callback=None, IP='localhost', port='1883', scan_timeout=300*)
+The PresenceSensor subscribes to the `ibeacon/adverts` topic to receive ibeacon advertisements from the Scanner object via an MQTT message broker.  The IP address and port for the broker may be supplied as arguments, or default to the localhost on port 1883.
+
 The `PresenceSensor` class provides a simple API to query whether the house is currently occupied, based on whether advertisement packets have recently been received from registered iBeacons associated with each member of the household.  The `query()` method returns `True` if the house is occupied (i.e. if any of the registered beacons are present), or `False` if none of the registered beacons have been detected for longer than the specified timeout.
 
-The PresenceSensor subscribes to the `ibeacon/adverts` topic to receive ibeacon advertisements from the Scanner object via n MQTT message broker.  The IP address and port for the broker may be supplied as arguments.
-
-In addition, callback functions `PresenceSensor.last-one-out` and `PresenceSensor.first-one-in` may be specified.  When the house is occupied, PresenceSensor.last_one_out is called when none of the registered beacons have been detected for longer than the specified `scan_timeout` in seconds, and the first-one-in callback is called immediately when the first registered beacon is subsequently detected.
+In addition, callback functions `PresenceSensor.last_one_out` and `PresenceSensor.first_one_in` may be specified.  When the house is occupied, `PresenceSensor.last_one_out` is called if none of the registered beacons have been detected for longer than the specified `scan_timeout` in seconds, and the `first-one-in` callback is called immediately when the first registered beacon is subsequently detected.
 
 ####ibeacon.PresenceSensor.query()
-Return True is house is occupied, False if none of the registered beacons have been detected for more than `self.scan_timeout` seconds (default = 60 seconds).
+Return True is house is occupied, False if none of the registered beacons have been detected for more than `self.scan_timeout` seconds (default = 300 seconds).
 
 ####ibeacon.PresenceSensor.register_beacon(*beacon, owner*)
 Add a beacon to the list of registered beacons in the household, by supplying the IDs of a new beacon as a dictionary with keys `UUID`, `MajorID` & `MinorID` and the owner of the beacon as a string.
