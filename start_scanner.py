@@ -1,4 +1,4 @@
-import ibeacon, config
+import ibeacon
 
-scanner = ibeacon.Scanner(topic=config.TOPIC)
+scanner = ibeacon.Scanner(topic='ibeacon/abc12')
 scanner.scan_forever()
