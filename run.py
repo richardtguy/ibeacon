@@ -1,5 +1,5 @@
 # import built-in modules
-import datetime, time, threading, signal, sys, random
+import datetime, time, threading, signal, sys, random, subprocess
 # import local modules
 import ibeacon, hue, config
 
@@ -10,6 +10,7 @@ lock = threading.Lock()
 def exit_handler(signal, frame):
 	print('Exiting...')
 	presence_sensor.stop()
+	scan_p.terminate()
 	sys.exit(0)
 signal.signal(signal.SIGINT, exit_handler)
 
@@ -50,10 +51,13 @@ bridge = hue.HueBridge(username=config.HUE_USERNAME, IP=config.HUE_IP_ADDRESS)
 daylight_sensor = hue.DaylightSensor(config.LATITUDE, config.LONGITUDE)
 
 # generate practically unique message topic for pub/sub ibeacon advertisements
-topic = 'ibeacon/' + get_ID(length=5)
+topic_ID = 'ibeacon/' + get_ID(length=5)
+
+# start scanner in subprocess (To-do: wait until scanner is connected before proceeding)
+scan_p = subprocess.Popen(['sudo', 'python', 'start_scanner.py', '--topic', topic_ID])
 
 # initialise presence sensor and register beacons
-presence_sensor = ibeacon.PresenceSensor(first_one_in_callback=welcome_home, last_one_out_callback=bye, topic='ibeacon/abc12', scan_timeout=config.SCAN_TIMEOUT)
+presence_sensor = ibeacon.PresenceSensor(first_one_in_callback=welcome_home, last_one_out_callback=bye, topic=topic_ID, scan_timeout=config.SCAN_TIMEOUT)
 beacon1 = {"UUID": "FDA50693-A4E2-4FB1-AFCF-C6EB07647825", "Major": "10004", "Minor": "54480"}
 beacon2 = {"UUID": "FDA50693-A4E2-4FB1-AFCF-C6EB07647825", "Major": "10004", "Minor": "54481"}
 print(presence_sensor.register_beacon(beacon1, "Richard"))
