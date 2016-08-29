@@ -3,6 +3,8 @@ import datetime, time, threading, signal, sys, random, subprocess
 # import local modules
 import ibeacon, hue, config
 
+print("Starting light controller, press [Ctrl+C] to exit.")
+
 # interlock to ensure that only one thread can access shared resources at a time
 lock = threading.Lock()
 
@@ -44,17 +46,16 @@ def bye():
 		for light in bridge:
 			light.off()
 
+# start scanner in subprocess (To-do: wait until scanner is connected before proceeding)
+# generate practically unique message topic for pub/sub ibeacon advertisements
+topic_ID = 'ibeacon/' + get_ID(length=5)
+scan_p = subprocess.Popen(['sudo', 'python', 'start_scanner.py', '--topic', topic_ID])
+
 # initialise Hue bridge
 bridge = hue.HueBridge(username=config.HUE_USERNAME, IP=config.HUE_IP_ADDRESS)
 
 # initialise daylight sensor (daylight times from sunrise-sunset.org API)
 daylight_sensor = hue.DaylightSensor(config.LATITUDE, config.LONGITUDE)
-
-# generate practically unique message topic for pub/sub ibeacon advertisements
-topic_ID = 'ibeacon/' + get_ID(length=5)
-
-# start scanner in subprocess (To-do: wait until scanner is connected before proceeding)
-scan_p = subprocess.Popen(['sudo', 'python', 'start_scanner.py', '--topic', topic_ID])
 
 # initialise presence sensor and register beacons
 presence_sensor = ibeacon.PresenceSensor(first_one_in_callback=welcome_home, last_one_out_callback=bye, topic=topic_ID, scan_timeout=config.SCAN_TIMEOUT)
@@ -68,7 +69,7 @@ presence_sensor.start()	# starts looping in a new thread
 hue_controller = hue.HueController(bridge, config.RULES, daylight_sensor, presence_sensor)
 
 # set lights to come on when we get home
-welcome_lights = ['Hall 1', 'Hall 2', 'Dining table']
+welcome_lights = ['Hall 1', 'Hall 2', 'Dining table', 'Kitchen cupboard']
 
 while True:
 	# tick controller to check if any actions should be triggered

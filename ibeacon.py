@@ -7,7 +7,7 @@ import paho.mqtt.client as mqtt
 # Local modules
 import timeout
 
-__version__ = '1.0.1'
+__version__ = '1.0.1+'
 
 DEVNULL = open(os.devnull, 'wb')	# /dev/null
 PLATFORM = os.uname()[0]
@@ -32,7 +32,7 @@ class Scanner():
 		signal.signal(signal.SIGINT, self._exit_handler)
 		
 	def scan_forever(self):		
-		print("Starting iBeacon scanner, press [Ctrl+C] to exit.")
+		print("Starting iBeacon scanner...")
 		self.on = True
 
 		# connect to message broker
@@ -74,17 +74,17 @@ class Scanner():
 		return advert
 	
 	def _on_connect(self, client, userdata, flags, rc):
-		print("Connected to message broker with result code " + str(rc))
+		print("Scanner connected to message broker with result code " + str(rc))
 		print("Publishing to %s" % (self.topic))
 			
 	def _on_disconnect(self, client, userdata, rc):
 		if rc != 0:
 			print('Unexpected disconnection! (%s)' % (rc))
 			time.sleep(5)
-			print('Reconnecting...')
+			print('Reconnecting scanner...')
 			self.mqttc.reconnect()
 		else:
-			print('Disconnected from message broker')		
+			print('Scanner disconnected from message broker')		
 	
 	def _stop(self):
 		print('Stopping scanner...')
@@ -97,7 +97,7 @@ class Scanner():
 			self.hcidump_p.wait()
 		self.parse_p.terminate()
 		self.parse_p.wait()
-		print('Stopped')
+		print('Scanner stopped')
 	
 	def _exit_handler(self, signal, frame):
 		self._stop()
@@ -185,7 +185,7 @@ class PresenceSensor():
 			time.sleep(0.1)
 
 	def _on_connect(self, client, userdata, flags, rc):
-		print("Connected to message broker with result code " + str(rc))
+		print("Presence Sensor connected to message broker with result code " + str(rc))
 		# Subscribing in on_connect() means that if we lose the connection and
 		# reconnect then subscriptions will be renewed.
 		print('Subscribing to %s' % (self.topic))
@@ -194,7 +194,7 @@ class PresenceSensor():
 	def _on_disconnect(self, client, userdata, rc):
 		if rc != 0:
 			print('Unexpected disconnection! (%s)' % (rc))
-		print('Disconnected from message broker')		
+		print('Presence Sensor disconnected from message broker')		
 	
 	def _message_handler(self, client, userdata, message):
 		# parse beacon IDs from message and fetch beacon from registered list

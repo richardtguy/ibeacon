@@ -32,7 +32,6 @@ class DaylightSensor():
 		# initialise sunrise & sunset times
 		now = datetime.datetime.now()
 		self.daylight_times = self._get_daylight_times(now)
-		self.logger.success('New daylight times (UTC) (sunrise: %s, sunset: %s)' % (self.daylight_times['sunrise'], self.daylight_times['sunset']))
 
 	def _get_daylight_times(self, date):
 		"""
@@ -49,22 +48,23 @@ class DaylightSensor():
 			return self.daylight_times
 		sunrise = datetime.datetime.strptime(sunrise_str,'%I:%M:%S %p').replace(date.year, date.month, date.day)
 		sunset = datetime.datetime.strptime(sunset_str,'%I:%M:%S %p').replace(date.year, date.month, date.day)
+		self.logger.success('New daylight times (UTC) (sunrise: %s, sunset: %s), next update due at %s' % (sunrise, sunset, self.update_daylight_due))
+		self.update_daylight_due = datetime.datetime.utcnow() + datetime.timedelta(hours=24)
 
 		return {'sunrise': sunrise, 'sunset': sunset}
 		
-	def query(self, time=datetime.datetime.now()):
+	def query(self, time=datetime.datetime.utcnow()):
 		"""
 		Return True if in daylight hours, False if not
 		"""
 		# update daylight times if >24 hours old
 		if time > self.update_daylight_due:
 			self.daylight_times = self._get_daylight_times(time)
-			self.update_daylight_due = time
 		
 		# ensure daylight times are same day as query time		
 		sunrise = self.daylight_times['sunrise'].replace(time.year, time.month, time.day)
 		sunset = self.daylight_times['sunset'].replace(time.year, time.month, time.day)
-		
+				
 		if (time > sunrise) and (time < sunset):
 			return True
 		else:
@@ -143,7 +143,7 @@ class HueController():
 			self.logger.err('Invalid PresenceMonitor object %s supplied to HueController %s' % (presence_sensor, self))
 					
 		self.last_tick_daylight = False
-		self.last_tick = datetime.datetime.now()
+		self.last_tick = datetime.datetime.utcnow()
 
 		# read rules from file
 		with open(rules, 'r') as f:
@@ -162,9 +162,9 @@ class HueController():
 		Check rules and trigger predefined actions
 		"""
 		# timer
-		now = datetime.datetime.now()
+		now = datetime.datetime.utcnow()
 		# daylight sensor
-		daylight = self.daylight_sensor.query(now)
+		daylight = self.daylight_sensor.query()
 
 		# update trigger times to today before checking against time now
 		self._update_times_to_today(now)		
@@ -173,14 +173,14 @@ class HueController():
 		for rule in self.rules.values():
 			# check rule applies today
 			if self._check_weekday(rule):
-				# daylight rules
+				# daylight rules (triggered at sunrise or sunset)
 				if (rule['trigger'] == 'daylight'):
 					if self.last_tick_daylight != daylight:
 						if (rule['time'] == 'sunset') and not daylight:
 							self._apply_action(rule)
 						if (rule['time'] == 'sunrise') and daylight:
 							self._apply_action(rule)
-				# timer rules
+				# timer rules (triggered at set times defined in local (UK) time)
 				else:
 					if (self.last_tick < rule['time'] + self.tz.utcoffset(rule['time'])) and (now > rule['time']  + self.tz.utcoffset(rule['time'])):
 						self._apply_action(rule)
@@ -190,8 +190,10 @@ class HueController():
 
 	def _check_weekday(self, rule, today=datetime.datetime.today()):
 		try:
-			if rule['days'][today.weekday()] == '1': return True
-			else: return False
+			if rule['days'][today.weekday()] == '1':
+				return True
+			else:
+				return False
 		except KeyError:
 			return True
 	
@@ -200,7 +202,7 @@ class HueController():
 		Apply triggered action to lights defined in rule (or all lights if none given)
 		"""
 		try:
-			self.logger.success('Triggered action %s' % (rule))
+			self.logger.success('Triggered action %s at %s' % (rule, datetime.datetime.now().strftime('%a %d/%m/%Y %H:%M:%S')))
 			if rule['action'] == 'on':
 				if len(rule['lights']) == 0:
 					for light in self.bridge:
