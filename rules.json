@@ -8,14 +8,14 @@
 	"2": {
 		"trigger": "timer",
 		"action": "on",
-		"time": "06:00",
+		"time": "09:20",
 		"lights": ["Hall 1","Hall 2","Dining table", "Kitchen cupboard"],
 		"days": "11111--"
 	},				
 	"8": {
 		"trigger": "timer",
 		"action": "on",
-		"time": "07:30",
+		"time": "09:20",
 		"lights": ["Hall 1","Hall 2","Dining table", "Kitchen cupboard"],
 		"days": "-----11"
 	},

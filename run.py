@@ -33,7 +33,7 @@ def get_ID(alphabet='abcdefghijklmnopqrstuvwxyz0123456789', length=8):
 def welcome_home():
 	with lock:
 		print('[%s] Welcome home!' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-		if daylight_sensor.query(datetime.datetime.now()):
+		if daylight_sensor.query():
 			for light in welcome_lights:
 				bridge.get(light).on()
 		else:

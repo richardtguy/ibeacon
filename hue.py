@@ -53,10 +53,14 @@ class DaylightSensor():
 
 		return {'sunrise': sunrise, 'sunset': sunset}
 		
-	def query(self, time=datetime.datetime.utcnow()):
+	def query(self, time=None):
 		"""
 		Return True if in daylight hours, False if not
 		"""
+		# set time to now if not supplied as argument
+		if time is None:
+			time = datetime.datetime.utcnow()
+		
 		# update daylight times if >24 hours old
 		if time > self.update_daylight_due:
 			self.daylight_times = self._get_daylight_times(time)
@@ -64,7 +68,8 @@ class DaylightSensor():
 		# ensure daylight times are same day as query time		
 		sunrise = self.daylight_times['sunrise'].replace(time.year, time.month, time.day)
 		sunset = self.daylight_times['sunset'].replace(time.year, time.month, time.day)
-				
+		
+		# return True if time is between sunrise and sunset, False otherwise
 		if (time > sunrise) and (time < sunset):
 			return True
 		else:
@@ -188,7 +193,9 @@ class HueController():
 		self.last_tick = now
 		self.last_tick_daylight = daylight
 
-	def _check_weekday(self, rule, today=datetime.datetime.today()):
+	def _check_weekday(self, rule, today=None):
+		if today is None:
+			today = datetime.datetime.today()
 		try:
 			if rule['days'][today.weekday()] == '1':
 				return True
