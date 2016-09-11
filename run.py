@@ -30,9 +30,9 @@ def get_ID(alphabet='abcdefghijklmnopqrstuvwxyz0123456789', length=8):
 # if using PresenceSensor.start() to loop in a child thread, these will be called from a
 # child process, so should be protected by a lock to prevent simultaneous access to the
 # HueBridge and HueLight objects with the HueController on the main thread.
-def welcome_home():
+def welcome_home(beacon_owner):
 	with lock:
-		print('[%s] Welcome home!' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+		print('[%s] Welcome home %s!' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), beacon_owner))
 		if daylight_sensor.query():
 			for light in welcome_lights:
 				bridge.get(light).on()
@@ -42,7 +42,7 @@ def welcome_home():
 
 def bye():
 	with lock:
-		print('[%s] Bye!' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+		print("[%s] There's no-one home, turning lights off..." % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
 		for light in bridge:
 			light.off()
 
@@ -58,7 +58,7 @@ bridge = hue.HueBridge(username=config.HUE_USERNAME, IP=config.HUE_IP_ADDRESS)
 daylight_sensor = hue.DaylightSensor(config.LATITUDE, config.LONGITUDE)
 
 # initialise presence sensor and register beacons
-presence_sensor = ibeacon.PresenceSensor(first_one_in_callback=welcome_home, last_one_out_callback=bye, topic=topic_ID, scan_timeout=config.SCAN_TIMEOUT)
+presence_sensor = ibeacon.PresenceSensor(welcome_callback=welcome_home, last_one_out_callback=bye, topic=topic_ID, scan_timeout=config.SCAN_TIMEOUT)
 beacon1 = {"UUID": "FDA50693-A4E2-4FB1-AFCF-C6EB07647825", "Major": "10004", "Minor": "54480"}
 beacon2 = {"UUID": "FDA50693-A4E2-4FB1-AFCF-C6EB07647825", "Major": "10004", "Minor": "54481"}
 print(presence_sensor.register_beacon(beacon1, "Richard"))
