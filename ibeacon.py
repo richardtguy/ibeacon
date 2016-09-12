@@ -112,25 +112,24 @@ class PresenceSensor():
 	- PresenceSensor then subscribes
 	  to the topic ibeacon/adverts and keeps track of which beacons have been detected 
 	  recently.
-	- Callback functions may be set for last-one-out and first-one-in events.
-	- PresenceSensor.query() method returns True if one or more registered beacons is 
-	  found, False otherwise
+	- Callback functions may be set for last-one-out and welcome events.
+	- PresenceSensor.query(beacon_owner) method returns True if beacon registered to
+	  beacon_owner is found, False otherwise
 	"""
 	# define required iBeacon ID keys
 	BEACON_ID_KEYS = ("UUID", "Major", "Minor")
 	
-	def __init__(self, first_one_in_callback=None, last_one_out_callback=None, IP='localhost', port='1883', topic='ibeacon/adverts', scan_timeout=datetime.timedelta(seconds=300)):
+	def __init__(self, welcome_callback=None, last_one_out_callback=None, IP='localhost', port='1883', topic='ibeacon/adverts', scan_timeout=datetime.timedelta(seconds=300)):
 		self.IP = IP
 		self.port = port
 		self.scan_timeout = scan_timeout
 		self.topic = topic
 		
 		# set callback functions (if supplied as arguments)
-		self.first_one_in_callback = first_one_in_callback
+		self.welcome_callback = welcome_callback
 		self.last_one_out_callback = last_one_out_callback
 		
-		self.registered_beacons = []		
-		self.occupied = False
+		self.registered_beacons = []
 
 		# initialise MQTT client
 		self.mqttc = mqtt.Client()
@@ -144,7 +143,7 @@ class PresenceSensor():
 			if key not in beacon.keys(): 
 				return "Failed to register beacon (missing or invalid ID)"
 		if self._get_beacon(beacon) == None:
-			self.registered_beacons.append({"owner": owner, "ID": beacon, "last_seen": datetime.datetime.now()})
+			self.registered_beacons.append({"owner": owner, "ID": beacon, "last_seen": datetime.datetime.now(), "in": True})
 			return "Registered beacon %s to owner %s" % (beacon, owner)
 
 	def deregister_beacon(self, beacon):
@@ -166,22 +165,34 @@ class PresenceSensor():
 		# disconnect client object from MQTT server
 		self.mqttc.disconnect()
 
-	def query(self):
-		return self.occupied
+	def query(self, beacon_owner=None):
+		if beacon_owner is None:
+			occupied = False
+			for b in self.registered_beacons:
+				if b['in']: occupied = True
+			return occupied
+		else:
+			for b in self.registered_beacons:
+				if b['owner'] == beacon_owner:
+					return b['in']
 	
 	def _loop(self):
 		while self.on:
 			# loop MQTT client (blocking) to periodically check for messages
-			self.mqttc.loop()	
-			# if no registered_key_fobs seen for > SCAN_TIMEOUT then set occupied = False and call last_one_out_callback()
+			self.mqttc.loop()
+			# if each beacon not seen for > SCAN_TIMEOUT then set 'in' to False. Call 
+			# last_one_out_callback() first time no beacons found after timeout.
 			now = datetime.datetime.now()
 			beacons_found = 0
 			for b in self.registered_beacons:
-				if now - b['last_seen'] < self.scan_timeout:
+				if now - b['last_seen'] > self.scan_timeout:
+					if b['in']: print('[%s] Bye %s!' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), b['owner']))
+					b['in'] = False
+				else:
 					beacons_found += 1
-			if (beacons_found == 0) and (self.occupied):
-					self.occupied = False
+			if (beacons_found == 0) and (beacons_found_last_loop > 0):
 					self.last_one_out_callback()
+			beacons_found_last_loop = beacons_found
 			time.sleep(0.1)
 
 	def _on_connect(self, client, userdata, flags, rc):
@@ -205,12 +216,12 @@ class PresenceSensor():
 		beacon = self._get_beacon(beacon_ID)
 		# if beacon is registered
 		if (beacon != None):
-			# update last seen datetime
+			# update last seen datetime and set 'in' to True
 			beacon['last_seen'] = datetime.datetime.now()
-			#print("Beacon %s seen at %s" % (beacon['ID'], beacon['last_seen'].strftime('%Y-%m-%d %H:%M:%S')))
-			if self.occupied == False:
-				self.occupied = True
-				self.first_one_in_callback()
+			# print("Beacon %s seen at %s" % (beacon['ID'], beacon['last_seen'].strftime('%Y-%m-%d %H:%M:%S')))
+			if beacon['in'] == False:
+				beacon['in'] = True
+				self.welcome_callback(beacon['owner'])
 
 	def _get_beacon(self, beacon):
 		for b in self.registered_beacons:
