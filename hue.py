@@ -1,4 +1,4 @@
-import requests, json, datetime, calendar, subprocess, signal
+import requests, json, datetime, calendar, subprocess, signal, time
 import log
 import config
 
@@ -219,8 +219,7 @@ class HueController():
 						self.bridge.get(light).on()
 			if rule['action'] == 'off':
 				if len(rule['lights']) == 0:
-					for light in self.bridge:
-						light.off()		
+					self.bridge.all_off()	
 				else:
 					for light in rule['lights']:
 						self.bridge.get(light).off()
@@ -233,8 +232,7 @@ class HueController():
 		if self.presence_sensor != None:
 			if not self.presence_sensor.query():
 				self.logger.info('There\'s no-one home; switching lights off')
-				for light in self.bridge:
-					light.off()
+				self.bridge.all_off()
 
 	def _update_times_to_today(self, today):
 		"""
@@ -273,7 +271,12 @@ class HueBridge():
 		self.lights = {}	
 		for light_id in r:
 			name = (r[light_id]['name'])
-			self.lights[name] = HueLight(name,light_id)
+			if r[light_id]['manufacturername'] == 'Philips':
+				self.lights[name] = HueLight(name,light_id)
+			elif r[light_id]['manufacturername'] == 'OSRAM':
+				self.lights[name] = LightifyLight(name,light_id)
+			else:
+				HueBridge.log.err('Unknown light manufacturer')
 
 		# set username and IP address for all HueLight objects
 		HueLight.username = username
@@ -296,11 +299,31 @@ class HueBridge():
 			raise StopIteration
 		return self.lights_list[self.counter]
 
+	def __next__(self):
+		return self.next()
+
 	def get(self, name):
 		"""
 		Return named HueLight object
 		"""
 		return self.lights[name]
+	
+	def all_off(self):
+		"""
+		Switch all lights off (repeat a few times to be sure)
+		"""
+		any_light_still_on = True
+		while any_light_still_on:
+			for light in self:
+				if light.save_state()['on']:
+					light.off()
+			time.sleep(30)
+			any_light_still_on = False
+			for light in self:
+				if light.save_state()['on']:
+					any_light_still_on = True
+					HueBridge.log.warning('Failed to switch off light, trying again: ' + light.name)
+		HueBridge.log.success('All lights off')
 	
 	def recall_scene(self, scene):
 		"""
@@ -347,15 +370,15 @@ class HueLight():
 		"""
 		Switch the light on
 		"""
-		self.__on_or_off('on')
+		self._on_or_off('on')
 
 	def off(self):
 		"""
 		Switches the light off
 		"""
-		self.__on_or_off('off')
+		self._on_or_off('off')
 		
-	def __on_or_off(self, operation):
+	def _on_or_off(self, operation):
 		url = 'http://'+self.IP+'/api/'+self.username+'/lights/'+self.ID+'/state'
 		if operation == 'on':
 			payload = '{"on": true}'
@@ -376,3 +399,41 @@ class HueLight():
 		r = requests.get(url)
 		self.state = r.json()['state']
 		return self.state		
+
+class LightifyLight(HueLight):
+	"""
+	Implement a simplified API for an Osram Lightify colour temperature light, connected
+	to a hue bridge.
+	(Due to a firmware issue, my Lightify colour temperature lights won't switch off 
+	properly when "on" is set to false.  This class includes a workaround for this that 
+	flashes the light using the alert command.)
+	"""
+
+	def __init__(self, name, ID):
+		self.bri = 80
+		self.name = name
+		self.ID = ID
+
+	def _on_or_off(self, operation):
+		url = 'http://'+self.IP+'/api/'+self.username+'/lights/'+self.ID+'/state'
+		if operation == 'on':
+			payload = '{"on": true, "bri": '+str(self.bri)+'}'
+			r = requests.put(url, data=payload)
+			if r.status_code == 200:
+				HueBridge.log.success(self.name + ' ' + operation)
+			else:
+				HueBridge.log.err(self.name + ' ' + operation)
+		else:
+			for x in range(1):
+				payload = '{"on": false, "bri": 0, "alert": "select"}'
+				r = requests.put(url, data=payload)
+				time.sleep(0.1)
+				payload = '{"on": false, "bri": 0, "alert": "none"}'
+				r = requests.put(url, data=payload)
+			if r.status_code == 200:
+				HueBridge.log.success(self.name + ' ' + operation)
+			else:
+				HueBridge.log.err(self.name + ' ' + operation)
+			
+
+		return r.json()
