@@ -143,7 +143,7 @@ class PresenceSensor():
 			if key not in beacon.keys(): 
 				return "Failed to register beacon (missing or invalid ID)"
 		if self._get_beacon(beacon) == None:
-			self.registered_beacons.append({"owner": owner, "ID": beacon, "last_seen": datetime.datetime.now(), "in": True})
+			self.registered_beacons.append({"owner": owner, "ID": beacon, "last_seen": datetime.datetime.now(), "in": False})
 			return "Registered beacon %s to owner %s" % (beacon, owner)
 
 	def deregister_beacon(self, beacon):

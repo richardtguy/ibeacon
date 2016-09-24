@@ -43,7 +43,8 @@ def welcome_home(beacon_owner):
 def bye():
 	with lock:
 		print("[%s] There's no-one home, turning lights off..." % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-		bridge.all_off()
+		for light in bridge:
+			light.off()
 
 # start scanner in subprocess (To-do: wait until scanner is connected before proceeding)
 # generate practically unique message topic for pub/sub ibeacon advertisements

@@ -219,7 +219,8 @@ class HueController():
 						self.bridge.get(light).on()
 			if rule['action'] == 'off':
 				if len(rule['lights']) == 0:
-					self.bridge.all_off()	
+					for light in self.bridge:
+						light.off()	
 				else:
 					for light in rule['lights']:
 						self.bridge.get(light).off()
@@ -232,7 +233,8 @@ class HueController():
 		if self.presence_sensor != None:
 			if not self.presence_sensor.query():
 				self.logger.info('There\'s no-one home; switching lights off')
-				self.bridge.all_off()
+				for light in self.bridge:
+					light.off()
 
 	def _update_times_to_today(self, today):
 		"""
@@ -299,32 +301,12 @@ class HueBridge():
 			raise StopIteration
 		return self.lights_list[self.counter]
 
-	def __next__(self):
-		return self.next()
-
 	def get(self, name):
 		"""
 		Return named HueLight object
 		"""
 		return self.lights[name]
-	
-	def all_off(self):
-		"""
-		Switch all lights off (repeat a few times to be sure)
-		"""
-		any_light_still_on = True
-		while any_light_still_on:
-			for light in self:
-				if light.save_state()['on']:
-					light.off()
-			time.sleep(30)
-			any_light_still_on = False
-			for light in self:
-				if light.save_state()['on']:
-					any_light_still_on = True
-					HueBridge.log.warning('Failed to switch off light, trying again: ' + light.name)
-		HueBridge.log.success('All lights off')
-	
+		
 	def recall_scene(self, scene):
 		"""
 		Recall a scene by id from the bridge; current lamp on/off states are preserved.

@@ -1,21 +1,27 @@
 {
-	"1": {
+	"0": {
 		"trigger": "timer",
 		"action": "scene",
 		"time": "01:00",
 		"scene": "morning"
 	},
+	"1": {
+		"trigger": "timer",
+		"action": "off",
+		"time": "01:00",
+		"lights": []
+	},	
 	"2": {
 		"trigger": "timer",
 		"action": "on",
-		"time": "09:20",
+		"time": "06:00",
 		"lights": ["Hall 1","Hall 2","Dining table", "Kitchen cupboard"],
 		"days": "11111--"
 	},				
 	"8": {
 		"trigger": "timer",
 		"action": "on",
-		"time": "09:20",
+		"time": "07:30",
 		"lights": ["Hall 1","Hall 2","Dining table", "Kitchen cupboard"],
 		"days": "-----11"
 	},
@@ -46,7 +52,7 @@
 	"7": {
 		"trigger": "timer",
 		"action": "off",
-		"time": "23:00",
+		"time": "22:30",
 		"lights": []
 	}		
 }
