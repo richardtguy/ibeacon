@@ -228,7 +228,7 @@ class Controller():
 					for light in rule['lights']:
 						self.bridge.get(light).off()
 			if rule['action'] == 'scene':
-				self.bridge.recall_scene(rule['scene'])
+				self.bridge.recall_local_scene(rule['scene'])
 		except TypeError:
 			self.logger.err('Action failed %s' % (rule))
 			
@@ -297,13 +297,14 @@ class Bridge():
 				elif isinstance(obj, LightifyLight):
 					type = 'Lightify'
 				light = {'type':type, 'name':name, 'id':obj.ID, 'uid':obj.UID}
+				print(light)
 				lights_to_save.append(light)
 			with open(fname, 'w') as f:
 				json.dump(lights_to_save, f)
 			# delete old saved scenes (as the lights will have inconsistent UIDs)
 			try:
 				os.remove('saved_scenes.json')
-			except IOError:
+			except OSError:
 				pass	
 		
 		# read saved scenes from file
@@ -312,6 +313,7 @@ class Bridge():
 			with open('saved_scenes.json', 'r') as f:
 				self.scenes = json.load(f)
 		except IOError:
+			print('No saved scenes found.')
 			self.scenes = {}
 		
 	def _connect_to_hue_bridge(self, username, IP):
@@ -445,10 +447,14 @@ class Bridge():
 		for light in self.lights.values():
 			light.save_state()
 
+		# lights must be on to update state
+		for light in self.lights.values():
+			light.on()
+		
 		# recall states of all lights from saved scene
 		try:
 			scene = self.scenes[scene_name]
-		except KeyError, OSError:
+		except (KeyError, OSError):
 			Bridge.log.err('Scene not found: ' + scene_name)
 			return
 		for light_UID, light_state in scene.items():
@@ -463,31 +469,6 @@ class Bridge():
 			if light.state['on']: light.on()
 			else: light.off()
 
-	def recall_scene(self, scene):
-		"""
-		Recall a scene by id from the Hue bridge; current lamp on/off states are preserved.
-		Lightify lights are unaffected.
-		"""
-		# store current on/off states of lamps
-		for light in self.lights.values():
-			light.save_state()
-		
-		# recall named scene
-		url = 'http://'+self.IP+'/api/'+self.username+'/groups/0/action'
-		payload = '{"scene":"'+scene+'"}'
-		r = requests.put(url, data=payload)
-		if r.status_code == 200:
-			Bridge.log.success('Recalled scene: ' + scene)
-		else:
-			Bridge.log.err('Failed to recall scene: ' + scene)
-
-		# restore previous on/off states		
-		for light in self.lights.values():
-			if light.state['on']: light.on()
-			else: light.off()
-
-		return r.json()
-
 # helper function to generate random unique IDs 
 def get_UID(alphabet='abcdefghijklmnopqrstuvwxyz0123456789', length=8):
 	ID = ''
@@ -501,8 +482,8 @@ class HueLight():
 	"""
 	Implement a simplified API for a Philips hue light (on/off, save & recall state)
 	"""
-	username = ''
-	IP = ''
+	username = config.HUE_USERNAME
+	IP = config.HUE_IP_ADDRESS
 	
 	def __init__(self, name, ID, UID=None):
 		# name as stored in Hue bridge
@@ -511,7 +492,7 @@ class HueLight():
 		self.ID = ID
 		# unique ID used to identify light in scenes (avoids problems if names are duplicated across Lightify gateway and Hue bridge)
 		if UID == None:
-			self.UID = get_UID
+			self.UID = get_UID()
 		else:
 			self.UID = UID 
 	
@@ -534,7 +515,7 @@ class HueLight():
 		self.__on_or_off('off')
 		
 	def __on_or_off(self, operation):
-		url = 'http://'+self.IP+'/api/'+self.username+'/lights/'+self.ID+'/state'
+		url = 'http://'+HueLight.IP+'/api/'+HueLight.username+'/lights/'+self.ID+'/state'
 		if operation == 'on':
 			payload = '{"on": true}'
 		else:
@@ -549,7 +530,7 @@ class HueLight():
 		"""
 		Fetch current state of light from bridge and save
 		"""
-		url = 'http://'+self.IP+'/api/'+self.username+'/lights/'+str(self.ID)
+		url = 'http://'+HueLight.IP+'/api/'+HueLight.username+'/lights/'+str(self.ID)
 		r = requests.get(url)
 		try:
 			r.raise_for_status()
@@ -563,27 +544,29 @@ class HueLight():
 		"""
 		Set light to previously saved parameters (brightness, colour temperature/colour & on/off only)
 		"""
-		url = 'http://'+self.IP+'/api/'+self.username+'/lights/'+self.ID+'/state'
+		url = 'http://'+HueLight.IP+'/api/'+HueLight.username+'/lights/'+self.ID+'/state'
 		try:
-			if state['colourmode'] == 'hs':
+			if state['colormode'] == 'hs':
 				# set hue & saturation
-				color_command = ',"hue":'+str(state['hue'])+',"sat":'+str(state['sat'])
-			elif state['colourmode'] == 'xy':
+				color_command = {"hue": state['hue'], "sat": state['sat']}
+			elif state['colormode'] == 'xy':
 				# set xy colour
-				color_command = ',"xy":'+str(state['xy'])
-			elif state['colourmode'] == 'ct':
+				color_command = {"xy": state['xy']}
+			elif state['colormode'] == 'ct':
 				# set colour temperature
-				color_command = ',"ct":'+str(state['ct'])
+				color_command = {"ct": state['ct']}
 		except KeyError:
 			# light doesn't support setting colour
 			color_command = ''
 
-		payload = '{"on":'+str(state['on'])+',"bri":'+str(state['bri'])+color_command+'}'
-		r = requests.put(url, data=payload)
-		if r.status_code == 200:
+		payload = {"on":state['on'],"bri":state['bri']}
+		payload.update(color_command)
+		r = requests.put(url, json=payload)
+		if (r.status_code == 200):
+			Bridge.log.success(self.name + ' ' + r.text)
 			return 1
 		else:
-			Bridge.log.err(self.name + ' ' + payload)
+			Bridge.log.err(self.name + ' ' + r.text)
 			return 0
 	
 class LightifyLight():
