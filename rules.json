@@ -1,28 +1,22 @@
 {
-	"0": {
+	"1": {
 		"trigger": "timer",
 		"action": "scene",
 		"time": "01:00",
 		"scene": "morning"
-	},
-	"1": {
-		"trigger": "timer",
-		"action": "off",
-		"time": "01:00",
-		"lights": []
 	},	
 	"2": {
 		"trigger": "timer",
 		"action": "on",
 		"time": "06:00",
-		"lights": ["Hall 1","Hall 2","Dining table", "Kitchen cupboard"],
+		"lights": ["Hall 1","Hall 2","Dining table", "Kitchen cupboard", "P16TW 01", "P16TW 02", "P16TW 03", "P16TW 04", "P16TW 05", "P16TW 06"],
 		"days": "11111--"
 	},				
 	"8": {
 		"trigger": "timer",
 		"action": "on",
 		"time": "07:30",
-		"lights": ["Hall 1","Hall 2","Dining table", "Kitchen cupboard"],
+		"lights": ["Hall 1","Hall 2","Dining table", "Kitchen cupboard", "P16TW 01", "P16TW 02", "P16TW 03", "P16TW 04", "P16TW 05", "P16TW 06"],
 		"days": "-----11"
 	},
 	"3": {
@@ -35,7 +29,7 @@
 		"trigger": "daylight",
 		"action": "off",
 		"time": "sunrise",
-		"lights": ["1st Floor Hall 1","1st Floor Hall 2"]
+		"lights": ["1st Floor Hall 1","1st Floor Hall 2", "P16TW 01", "P16TW 02", "P16TW 03", "P16TW 04", "P16TW 05", "P16TW 06"]
 	},		
 	"5": {
 		"trigger": "daylight",
@@ -47,12 +41,12 @@
 		"trigger": "daylight",
 		"action": "on",
 		"time": "sunset",
-		"lights": ["1st Floor Hall 1","1st Floor Hall 2","Lounge floor lamp","Lounge table lamp"]
+		"lights": ["1st Floor Hall 1","1st Floor Hall 2","Lounge floor lamp","Lounge table lamp","P16TW 01", "P16TW 02", "P16TW 03", "P16TW 04", "P16TW 05", "P16TW 06"]
 	},
 	"7": {
 		"trigger": "timer",
 		"action": "off",
-		"time": "22:30",
+		"time": "23:00",
 		"lights": []
 	}		
 }
