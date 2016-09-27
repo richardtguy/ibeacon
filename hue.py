@@ -2,12 +2,13 @@ import requests, json, datetime, calendar, subprocess, signal, time, random, os,
 import log
 import config
 
-__version__ = '1.2.0'
+__version__ = '1.3.0'
 
 """
 Bridge and HueLight objects are not threadsafe, so use locks to ensure only one process
 can access these at a time (e.g. when iterating over the bridge).
-v1.2.0  Added support for Lightify Gateway
+v1.3.0	Changed to control Lightify Gateway via LAN instead of Cloud API (for lower latency)
+v1.2.0  Added support for Lightify Gateway (Cloud API)
 v1.1.1	Added option to filter rules by days of the week
 v1.1.0	Added HueController & DaylightSensor classes
 v1.0.0	HueLight & Bridge classes
@@ -259,13 +260,15 @@ class Bridge():
 	# set up log
 	log = log.TerminalLog()
 
-	def __init__(self, hue_uname=None, hue_IP=None, lightify_uname=None, lightify_pword=None, lightify_serial=None):
+	def __init__(self, hue_uname=None, hue_IP=None, lightify_IP=None):
 
 		self.__hue_connected = False
 		self.__lightify_connected = False
+		
+		# dict from light names to light objects
+		self.lights = {}
 
 		# read list of connected lights from file if available, or connect to bridge and gateway to rebuild list
-		self.lights = {}
 		fname = 'saved_lights.json'
 		try:
 			# read list of lights from file and write to self.lights
@@ -274,33 +277,48 @@ class Bridge():
 			print('Retrieving saved list of lights...')
 			for l in saved_lights:
 				if l['type'] == 'Hue':
+					# create HueLight object with name, ID and UID from file
 					self.lights[l['name']] = HueLight(l['name'], l['id'], l['uid'])
+					self.__hue_connected = True
+					Bridge.log.success(self.get(l['name']).name())
 				elif l['type'] == 'Lightify':
-					self.lights[l['name']] = LightifyLight(l['name'], l['id'], l['uid'])
-				Bridge.log.success(self.get(l['name']).get_name())
+					self.__lightify_connected = True
+
+			if self.__lightify_connected:
+				# if Lightify lights in saved list, connect to Lightify Gateway to create internal list of lights
+				self.__lightify_IP = lightify_IP
+				self.__lightify = lightify.Lightify(self.__lightify_IP)
+				self.__lightify.update_all_light_status()
+				lightify_lights = self.__lightify.lights()
+
+				# check list of saved lights for names that match lights in internal list
+				for light in lightify_lights.values():
+					for l in saved_lights:
+						if l['name'] == light.name():
+							# if name matches create a LightifyLight object with corresponding saved UID
+							self.lights[light.name()] = LightifyLight(light, l['uid'])
+							Bridge.log.success(self.get(light.name()).name())
 
 		except IOError:
-			# if saved list of lights does not exist then rebuild it
-			print('Unable to read saved list of lights, attempting to rebuild.')
+			# if saved list of lights does not exist then rebuild and save it
+			print('Unable to read saved list of lights, attempting to rebuild...')
 			# connect to Philips Hue bridge and load connected lights (if applicable)
 			if hue_uname != None:
 				print('Connecting to Hue Bridge...')
 				self._connect_to_hue_bridge(hue_uname, hue_IP)
 		
 			# connect to Osram Lightify gateway and load connected lights (if applicable)
-			if lightify_uname != None:
+			if lightify_IP != None:
 				print('Connecting to Lightify Gateway...')
-				self._connect_to_lightify_gateway(lightify_uname, lightify_pword, lightify_serial)
+				self._connect_to_lightify_gateway(lightify_IP)
 
 			# save list of lights to file
 			lights_to_save = []
 			for name, obj in self.lights.items():
 				if isinstance(obj, HueLight):
-					type = 'Hue'
+					light = {'type':'Hue', 'name':name, 'id':obj.ID(), 'uid':obj.UID()}
 				elif isinstance(obj, LightifyLight):
-					type = 'Lightify'
-				light = {'type':type, 'name':name, 'id':obj.ID, 'uid':obj.UID}
-				print(light)
+					light = {'type':'Lightify', 'name':name, 'uid':obj.UID(), 'addr':obj.addr()}
 				lights_to_save.append(light)
 			with open(fname, 'w') as f:
 				json.dump(lights_to_save, f)
@@ -314,10 +332,11 @@ class Bridge():
 		print('Loading saved scenes...')
 		try:
 			with open('saved_scenes.json', 'r') as f:
-				self.scenes = json.load(f)
+				self.__scenes = json.load(f)
 		except IOError:
 			print('No saved scenes found.')
-			self.scenes = {}
+			self.__scenes = {}
+			
 		
 	def _connect_to_hue_bridge(self, username, IP):
 		"""
@@ -341,7 +360,7 @@ class Bridge():
 		for light_id in r:
 			name = (r[light_id]['name'])
 			self.lights[name] = HueLight(name,light_id)
-			Bridge.log.success(self.lights[name].get_name())
+			Bridge.log.success(self.lights[name].name())
 
 		# set username and IP address for all HueLight objects
 		HueLight.username = username
@@ -357,14 +376,13 @@ class Bridge():
 		self.__lightify_connected = True
 		self.__lightify_IP = hostname
 
-		self.__lightify = Lightify(self.__lightify_IP)
+		self.__lightify = lightify.Lightify(self.__lightify_IP)
 		self.__lightify.update_all_light_status()
 		lights = self.__lightify.lights()
 
 		for light in lights.values():
 			self.lights[light.name()] = LightifyLight(light)
-			print(light.get_name())
-			Bridge.log.success(self.lights[light.name()].get_name())
+			Bridge.log.success(self.lights[light.name()].name())
 	
 	def __iter__(self):
 		# create a list of HueLight objects to iterate over by index
@@ -393,7 +411,7 @@ class Bridge():
 		Return light object with corresponding UID
 		"""
 		for light in self.lights.values():
-			if light.UID == UID: return light
+			if light.UID() == UID: return light
 		raise KeyError('Light with specified UID not found')
 	
 	def save_scene_locally(self, scene_name):
@@ -406,10 +424,10 @@ class Bridge():
 		if self.__lightify_connected: self.__lightify.update_all_light_status()
 		# save states of all lights
 		for light in self.lights.values():
-			scene[light.UID] = light.save_state()
-		self.scenes[scene_name] = scene
+			scene[light.UID()] = light.save_state()
+		self.__scenes[scene_name] = scene
 		with open('saved_scenes.json', 'w') as f:
-			json.dump(self.scenes, f)
+			json.dump(self.__scenes, f)
 		Bridge.log.success('Saved scene: ' + scene_name)
 		
 	def recall_local_scene(self, scene_name):
@@ -418,31 +436,35 @@ class Bridge():
 		"""
 		err = False
 
-		# store current on/off states of lamps
-		for light in self.lights.values():
-			light.save_state()
-
-		# lights must be on to update state
-		for light in self.lights.values():
-			light.on()
-		
-		# recall states of all lights from saved scene
+		# load light states corresponding to named scene
 		try:
-			scene = self.scenes[scene_name]
+			scene = self.__scenes[scene_name]
 		except (KeyError, OSError):
 			Bridge.log.err('Scene not found: ' + scene_name)
 			return
-		for light_UID, light_state in scene.items():
-			if self._get_by_UID(light_UID).recall_state(light_state) == 0: err = True
-		if err:
-			Bridge.log.err('Problem recalling scene: ' + scene_name)
-		else:
-			Bridge.log.success('Recalled scene: ' + scene_name)
 
-		# restore previous on/off states		
+		# refresh states of all Lightify lights
+		if self.__lightify_connected: self.__lightify.update_all_light_status()
+
 		for light in self.lights.values():
-			if light.state['on']: light.on()
-			else: light.off()
+			# store current on/off states of lamps
+			saved_state = light.save_state()
+			# lights must be on to update state
+			light.on()
+
+			# find saved state for light in scene
+			for UID, light_state in scene.items():
+				if UID == light.UID():
+					light.recall_state(light_state)
+			
+			# restore previous on/off states		
+			if saved_state['on']:
+				light.on()
+			else:
+				light.off()
+		
+		Bridge.log.success('Recalled scene: ' + scene_name)
+		
 
 # helper function to generate random unique IDs 
 def get_UID(alphabet='abcdefghijklmnopqrstuvwxyz0123456789', length=8):
@@ -462,20 +484,26 @@ class HueLight():
 	
 	def __init__(self, name, ID, UID=None):
 		# name as stored in Hue bridge
-		self.name = name
+		self.__name = name
 		# light ID as stored in Hue bridge
-		self.ID = ID
+		self.__ID = ID
 		# unique ID used to identify light in scenes (avoids problems if names are duplicated across Lightify gateway and Hue bridge)
 		if UID == None:
-			self.UID = get_UID()
+			self.__UID = get_UID()
 		else:
-			self.UID = UID 
+			self.__UID = UID 
+
+	def UID(self):
+		return self.__UID
+		
+	def ID(self):
+		return self.__ID
 	
-	def get_name(self):
+	def name(self):
 		"""
 		Return the name of the light
 		"""
-		return self.name
+		return self.__name
 		
 	def on(self):
 		"""
@@ -490,36 +518,36 @@ class HueLight():
 		self.__on_or_off('off')
 		
 	def __on_or_off(self, operation):
-		url = 'http://'+HueLight.IP+'/api/'+HueLight.username+'/lights/'+self.ID+'/state'
+		url = 'http://'+HueLight.IP+'/api/'+HueLight.username+'/lights/'+self.__ID+'/state'
 		if operation == 'on':
 			payload = '{"on": true}'
 		else:
 			payload = '{"on": false}'
 		r = requests.put(url, data=payload)
 		if r.status_code == 200:
-			Bridge.log.success(self.name + ' ' + operation)
+			Bridge.log.success(self.__name + ': ' + operation)
 		else:
-			Bridge.log.err(self.name + ' ' + operation)
+			Bridge.log.err(self.__name + ': ' + operation)
 
 	def save_state(self):
 		"""
 		Fetch current state of light from bridge and save
 		"""
-		url = 'http://'+HueLight.IP+'/api/'+HueLight.username+'/lights/'+str(self.ID)
+		url = 'http://'+HueLight.IP+'/api/'+HueLight.username+'/lights/'+str(self.__ID)
 		r = requests.get(url)
 		try:
 			r.raise_for_status()
 		except requests.exceptions.HTTPError:
-			Bridge.log.err(self.name + 'Failed to save state')
+			Bridge.log.err(self.__name + 'Failed to save state')
 			return 0
-		self.state = r.json()['state']
-		return self.state
+		self.__state = r.json()['state']
+		return self.__state
 
 	def recall_state(self, state):
 		"""
 		Set light to previously saved parameters (brightness, colour temperature/colour & on/off only)
 		"""
-		url = 'http://'+HueLight.IP+'/api/'+HueLight.username+'/lights/'+self.ID+'/state'
+		url = 'http://'+HueLight.IP+'/api/'+HueLight.username+'/lights/'+self.__ID+'/state'
 		try:
 			if state['colormode'] == 'hs':
 				# set hue & saturation
@@ -538,10 +566,10 @@ class HueLight():
 		payload.update(color_command)
 		r = requests.put(url, json=payload)
 		if (r.status_code == 200):
-			Bridge.log.success(self.name + ' ' + r.text)
+			Bridge.log.success(self.__name + ' ' + r.text)
 			return 1
 		else:
-			Bridge.log.err(self.name + ' ' + r.text)
+			Bridge.log.err(self.__name + ' ' + r.text)
 			return 0
 
 
@@ -551,47 +579,47 @@ class LightifyLight():
 	This class is a wrapper for a lightify.Light object, exposing only the methods
 	required for compatibility with the Bridge class.
 	"""	
-	def __init__(self, light, UID=None)
+	def __init__(self, light, UID=None):
 		# name as stored in Lightify Gateway
 		self.__name = light.name()
 		
 		# unique ID used to identify light in scenes (avoids problems if names are duplicated across Lightify gateway and Hue bridge)
 		if UID == None:
-			self.UID = get_UID()
+			self.__UID = get_UID()
 		else:
-			self.UID = UID
-		self.__UID = self.UID
+			self.__UID = UID
 
 		# must be a lightify.Light object
 		self.__light = light
 
-	def get_name(self):
+	def name(self):
 		return self.__name
 		
 	def UID(self):
 		return self.__UID
 		
+	def addr(self):
+		return self.__light.addr()
+		
 	def on(self):
 		self.__light.set_onoff(True)
-		Bridge.log.success(self.name + 'on')
+		Bridge.log.success(self.__name + ': on')
 		
 	def off(self):
 		self.__light.set_onoff(False)
-		Bridge.log.success(self.name + 'off')
+		Bridge.log.success(self.__name + ': off')
 		
 	def save_state(self):
-		state = {'on': self.__light.__on, 'lum': self.__light.__lum, 'temp': self.__light.__temp}
-		return state
+		self.__state = {'on': self.__light.on(), 'lum': self.__light.lum(), 'temp': self.__light.temp()}
+		return self.__state
 				
-	def recall_state(self, state)
+	def recall_state(self, state):
 		# on/off
 		if state['on']:
 			self.on()
 		else:
 			self.off()
 		# brightness
-		self.__light.set_luminance(state['lum'], 0)
+		self.__light.set_luminance(state['lum'], 10)
 		# colour temperature
-		self.__light.set_temperature(state['temp'], 0)
-		
-		return 1
+		self.__light.set_temperature(state['temp'], 10)

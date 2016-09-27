@@ -52,7 +52,7 @@ topic_ID = 'ibeacon/' + get_ID(length=5)
 scan_p = subprocess.Popen(['sudo', 'python', 'start_scanner.py', '--topic', topic_ID])
 
 # initialise Hue bridge
-bridge = hue.Bridge(hue_uname=config.HUE_USERNAME, hue_IP=config.HUE_IP_ADDRESS, lightify_uname=config.LIGHTIFY_USERNAME, lightify_pword=config.LIGHTIFY_PASSWORD, lightify_serial=config.LIGHTIFY_SERIAL)
+bridge = hue.Bridge(hue_uname=config.HUE_USERNAME, hue_IP=config.HUE_IP_ADDRESS, lightify_IP=config.LIGHTIFY_IP)
 
 # initialise daylight sensor (daylight times from sunrise-sunset.org API)
 daylight_sensor = hue.DaylightSensor(config.LATITUDE, config.LONGITUDE)
