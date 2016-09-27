@@ -1,4 +1,4 @@
-import requests, json, datetime, calendar, subprocess, signal, time, random, os
+import requests, json, datetime, calendar, subprocess, signal, time, random, os, lightify
 import log
 import config
 
@@ -261,6 +261,9 @@ class Bridge():
 
 	def __init__(self, hue_uname=None, hue_IP=None, lightify_uname=None, lightify_pword=None, lightify_serial=None):
 
+		self.__hue_connected = False
+		self.__lightify_connected = False
+
 		# read list of connected lights from file if available, or connect to bridge and gateway to rebuild list
 		self.lights = {}
 		fname = 'saved_lights.json'
@@ -322,6 +325,8 @@ class Bridge():
 		of lights. Create a HueLight object for each light, with names as keys
 		and append to lights dictionary.
 		"""
+		self.__hue_connected = True
+
 		self.hue_uname = username
 		self.hue_IP = IP
 		
@@ -336,63 +341,30 @@ class Bridge():
 		for light_id in r:
 			name = (r[light_id]['name'])
 			self.lights[name] = HueLight(name,light_id)
+			Bridge.log.success(self.lights[name].get_name())
 
 		# set username and IP address for all HueLight objects
 		HueLight.username = username
 		HueLight.IP = IP
 
-		for light in self:
-			Bridge.log.success(light.get_name())
 
-	def _connect_to_lightify_gateway(self, lightify_uname, lightify_pword, lightify_serial):
+	def _connect_to_lightify_gateway(self, hostname):
 		"""
-		Query Lightify gateway using given username, password and IP address to get list
-		of lights. Create and initialise a LightifyLight object for each light, with names 
-		as keys and append to lights dictionary.
+		Connect to Lightify gateway on local network, create a LightifyLight object for
+		each registered light, with names as keys and add to lights dictionary.
 		"""
-		API = LightifyLight.API
-		
-		# start session (use username, password and gateway serial number to get security token & user ID)
-		url = API+'/session'
-		headers = {'Content-Type': 'application/json'}
-		payload = {'username': lightify_uname, 'password': lightify_pword, 'serialNumber': lightify_serial}
-		r = requests.post(url, json=payload)
-		if r.status_code == 200:
-			Bridge.log.success('Connected to Lightify Gateway')
-			LightifyLight.token_expiry = datetime.datetime.utcnow()
-		else:
-			Bridge.log.err('Could not contact Lightify Gateway (%s)' % (r.status_code))
-		r = r.json()
-		user_ID = r['userId']
-		securityToken = r['securityToken']
+		# initialise connection to Lightify Gateway via local network
+		self.__lightify_connected = True
+		self.__lightify_IP = hostname
 
-		# query gateway for list of connected lights
-		url = API+'/devices'
-		headers = {'Content-Type': 'application/json', 'authorization':securityToken}
-		r = requests.get(url, headers=headers)
-		if r.status_code == 200:
-			Bridge.log.success('List of lights received from Lightify Gateway')
-		else:
-			Bridge.log.err('Problem getting list of lights from Lightify Gateway')
-		r = r.json()
-		
-		# create LightifyLight objects and append to lights list
-		for light in r:
-			name = light['name']
-			ID = light['deviceId']
-			self.lights[name] = LightifyLight(name, ID)
+		self.__lightify = Lightify(self.__lightify_IP)
+		self.__lightify.update_all_light_status()
+		lights = self.__lightify.lights()
 
-		# set username, password, IP address, gateway serial and initialise security token for all LightifyLight objects
-		LightifyLight.uname = lightify_uname
-		LightifyLight.pword = lightify_pword
-		LightifyLight.serial = lightify_serial
-
-		LightifyLight.token = securityToken
-		LightifyLight.token_expiry = datetime.datetime.utcnow() + datetime.timedelta(minutes=LIGHTIFY_SESSION_TIMEOUT)
-
-		for light in self:
-			Bridge.log.success(light.get_name())
-
+		for light in lights.values():
+			self.lights[light.name()] = LightifyLight(light)
+			print(light.get_name())
+			Bridge.log.success(self.lights[light.name()].get_name())
 	
 	def __iter__(self):
 		# create a list of HueLight objects to iterate over by index
@@ -430,6 +402,9 @@ class Bridge():
 		"""
 		# save states of all lights
 		scene = {}
+		# refresh states of all Lightify lights
+		if self.__lightify_connected: self.__lightify.update_all_light_status()
+		# save states of all lights
 		for light in self.lights.values():
 			scene[light.UID] = light.save_state()
 		self.scenes[scene_name] = scene
@@ -568,114 +543,55 @@ class HueLight():
 		else:
 			Bridge.log.err(self.name + ' ' + r.text)
 			return 0
-	
+
+
 class LightifyLight():
 	"""
 	Implement a simplified API for an Osram Lightify light (on/off, save & recall state)
-	To Do: Streamline authentication as per http://docs.python-requests.org/en/master/user/advanced/#custom-authentication
-	"""
-	uname = config.LIGHTIFY_USERNAME
-	pword = config.LIGHTIFY_PASSWORD
-	serial = config.LIGHTIFY_SERIAL
-	API = 'https://eu.lightify-api.org/lightify/services'
-	token = ''
-	token_expiry = datetime.datetime.utcnow()
-
-	def __init__(self, name, ID, UID=None):
-		# name as stored in Lightify gateway
-		self.name = name
-		# device ID as stored in Lightify gateway
-		self.ID = ID
+	This class is a wrapper for a lightify.Light object, exposing only the methods
+	required for compatibility with the Bridge class.
+	"""	
+	def __init__(self, light, UID=None)
+		# name as stored in Lightify Gateway
+		self.__name = light.name()
+		
 		# unique ID used to identify light in scenes (avoids problems if names are duplicated across Lightify gateway and Hue bridge)
 		if UID == None:
 			self.UID = get_UID()
 		else:
 			self.UID = UID
+		self.__UID = self.UID
+
+		# must be a lightify.Light object
+		self.__light = light
 
 	def get_name(self):
-		"""
-		Return the name of the light
-		"""
-		return self.name
-
-	def _get_security_token(self):
-		if datetime.datetime.utcnow() > LightifyLight.token_expiry:
-			url = LightifyLight.API+'/session'
-			payload = {'username': LightifyLight.uname, 'password': LightifyLight.pword, 'serialNumber': LightifyLight.serial}
-			r = requests.post(url, json=payload)
-			if r.status_code != 200:
-				Bridge.log.err('Could not get security token for Lightify gateway (%s)' % (r.status_code))
-				return 0
-			LightifyLight.token = r.json()['securityToken']
-			LightifyLight.token_expiry = datetime.datetime.utcnow() + datetime.timedelta(minutes=LIGHTIFY_SESSION_TIMEOUT)
-		return LightifyLight.token
-
+		return self.__name
+		
+	def UID(self):
+		return self.__UID
+		
 	def on(self):
-		"""
-		Switch the light on
-		"""
-		self.__on_or_off('on')
-
+		self.__light.set_onoff(True)
+		Bridge.log.success(self.name + 'on')
+		
 	def off(self):
-		"""
-		Switches the light off
-		"""
-		self.__on_or_off('off')
-
-	def __on_or_off(self, operation):
-		url = LightifyLight.API+'/device/set'
-		if operation == 'on':
-			payload = {'onoff': 1, 'idx': self.ID}
-		else:
-			payload = {'onoff': 0, 'idx': self.ID}		
-		headers = {'Content-Type': 'application/json', 'authorization':self._get_security_token()}
-		r = requests.get(url, headers=headers, params=payload)
-		if r.status_code == 200:
-			Bridge.log.success(self.name + ' ' + operation)
-		elif r.status_code == 400:
-			Bridge.log.err(self.name + ' ' + operation + ' (Invalid Security Token)')			
-		else:
-			Bridge.log.err(self.name + ' ' + operation)
+		self.__light.set_onoff(False)
+		Bridge.log.success(self.name + 'off')
 		
 	def save_state(self):
-		"""
-		Fetch current state of light from gateway and save
-		"""
-		url = LightifyLight.API+'/devices/'+str(self.ID)
-		headers = {'Content-Type': 'application/json', 'authorization':self._get_security_token()}
-		r = requests.get(url, headers=headers)
-		try:
-			r.raise_for_status()
-		except requests.exceptions.HTTPError:
-			Bridge.log.err(self.name + 'Failed to save state')
-			return 0
-		self.state = r.json()
-		return self.state
-
-	def recall_state(self, state):
-		"""
-		Set light to previously saved parameters (brightness, colour temperature & on/off only)
-		Lightify API accepts on/off + brightness level or color temperature in one call, not all together
-		"""
-		url = LightifyLight.API+'/device/set'
-		OK = True
+		state = {'on': self.__light.__on, 'lum': self.__light.__lum, 'temp': self.__light.__temp}
+		return state
 				
-		payload = {'idx': self.ID, 'onoff': state['on'], 'level': state['brightnessLevel']}
-		headers = {'Content-Type': 'application/json', 'authorization':self._get_security_token()}
-		r = requests.get(url, headers=headers, params=payload)
-		try:
-			r.raise_for_status()
-		except requests.exceptions.HTTPError:
-			Bridge.log.err(self.name + ' Failed to recall state')
-			return 0
-		
-		payload = {'idx': self.ID, 'ctemp': state['temperature']}
-		headers = {'Content-Type': 'application/json', 'authorization':self._get_security_token()}
-		r = requests.get(url, headers=headers, params=payload)
-		try:
-			r.raise_for_status()
-		except requests.exceptions.HTTPError:
-			Bridge.log.err(self.name + ' Failed to recall state')
-			return 0
+	def recall_state(self, state)
+		# on/off
+		if state['on']:
+			self.on()
+		else:
+			self.off()
+		# brightness
+		self.__light.set_luminance(state['lum'], 0)
+		# colour temperature
+		self.__light.set_temperature(state['temp'], 0)
 		
 		return 1

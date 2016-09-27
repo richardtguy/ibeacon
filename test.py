@@ -1,10 +1,32 @@
-import hue, config, time
+import hue, config, time, logging
+from lightify import Lightify, Light
 
-print('Testing initialise connection to Lightify Gateway')
-bridge = hue.Bridge(lightify_uname=config.LIGHTIFY_USERNAME, lightify_pword=config.LIGHTIFY_PASSWORD, lightify_serial=config.LIGHTIFY_SERIAL)
+		
+# initialise bridge connection to Lightify Gateway via Cloud API
+bridge = hue.Bridge(hue_uname = config.HUE_USERNAME, hue_IP = config.HUE_IP_ADDRESS)
 
-#bridge.save_scene_locally('daytime')
-bridge.recall_local_scene('evening')
+# initialise connection to Lightify Gateway via local network
+LIGHTIFY_IP = '192.168.1.10'
+
+lightify = Lightify(LIGHTIFY_IP)
+
+logging.basicConfig(filename='test.log',level=logging.DEBUG)
+
+lightify.update_all_light_status()
+lights = lightify.lights()
+
+for light in lights.values():
+	bridge.lights[light.name()] = light
+	print(light.get_name())
+	
+print('Testing initialise connection to Lightify Gateway...')
+
+"""
+for light in bridge:
+	light.off()
+	
 time.sleep(2)
-bridge.recall_local_scene('daytime')
 
+for light in bridge:
+	light.on()
+"""
