@@ -36,12 +36,12 @@
 		"action": "scene",
 		"time": "sunset",
 		"scene": "evening"
-	},
+	},	
 	"6": {
 		"trigger": "daylight",
 		"action": "on",
 		"time": "sunset",
-		"lights": ["1st Floor Hall 1","1st Floor Hall 2","Lounge floor lamp","Lounge table lamp","P16TW 01", "P16TW 02", "P16TW 03", "P16TW 04", "P16TW 05", "P16TW 06"]
+		"lights": ["Hall 1","Hall 2","Dining table", "Kitchen cupboard", "1st Floor Hall 1","1st Floor Hall 2","Lounge floor lamp","Lounge table lamp","P16TW 01", "P16TW 02", "P16TW 03", "P16TW 04", "P16TW 05", "P16TW 06"]
 	},
 	"7": {
 		"trigger": "timer",

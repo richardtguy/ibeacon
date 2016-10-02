@@ -1,0 +1,28 @@
+{
+    "80:e4:da:71:36:f6": {
+        "group": [
+            "Dining table",
+            "Hall 1",
+            "Hall 2",
+            "Kitchen cupboard"
+        ]
+    },
+    "80:e4:da:71:85:af": {
+        "group": [
+            "Lounge floor lamp",
+            "Lounge table lamp",
+            "1st Floor Hall 1",
+            "1st Floor Hall 2"
+        ]
+    },
+    "80:e4:da:71:14:ba": {
+		"group": [
+            "P16TW 01",
+            "P16TW 02",
+            "P16TW 03",
+            "P16TW 04",                                    
+            "P16TW 05",
+            "P16TW 06"			
+		]
+    }
+}

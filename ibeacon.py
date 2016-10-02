@@ -1,5 +1,6 @@
 # Built-in modules
-import time, datetime, json, threading, os, signal, sys, subprocess
+import time, datetime, json, threading, os, signal, sys, subprocess, logging
+from io import StringIO
 
 # Installed modules
 import paho.mqtt.client as mqtt
@@ -9,6 +10,8 @@ import timeout
 
 __version__ = '1.0.1+'
 
+logger = logging.getLogger(__name__)
+
 DEVNULL = open(os.devnull, 'wb')	# /dev/null
 PLATFORM = os.uname()[0]
 
@@ -17,7 +20,7 @@ class Scanner():
 	Scan for ibeacon avertisement packets and publish to MQTT message broker
 	Binaries and scripts are provided for linux (using bluez stack) or mac osx
 	"""
-	def __init__(self, IP='localhost', port='1883', hci='hci0', topic='ibeacon/adverts'):
+	def __init__(self, IP='localhost', port=1883, hci='hci0', topic='ibeacon/adverts'):
 		self.IP = IP
 		self.port = port
 		self.hci = hci
@@ -44,18 +47,18 @@ class Scanner():
 
 		# start subprocesses in shell to dump and parse raw bluetooth packets		
 		if PLATFORM == 'Linux':
-			print("Running on Linux...")
+			logger.debug("Running on Linux...")
 			hcidump_args = ['hcidump', '--raw', '-i', self.hci]
 			parse_args = ['./ibeacon_parse.sh']
 			self.hcidump_p = subprocess.Popen(hcidump_args, stdout=subprocess.PIPE)
 			self.parse_p = subprocess.Popen(parse_args, stdout=subprocess.PIPE, stdin=self.hcidump_p.stdout, stderr=DEVNULL)
 
 		elif PLATFORM == 'Darwin':
-			print("Running on OSX...")
+			logger.debug("Running on OSX...")
 			parse_args = ['./ibeacon_scan']
 			self.parse_p = subprocess.Popen(parse_args, stdout=subprocess.PIPE, stderr=DEVNULL)
 		else:
-			print("Platform not supported")
+			logger.error("Platform not supported")
 
 		while self.on:
 			# read next ibeacon advertisement packet (blocking if nothing to read)
@@ -74,17 +77,17 @@ class Scanner():
 		return advert
 	
 	def _on_connect(self, client, userdata, flags, rc):
-		print("Scanner connected to message broker with result code " + str(rc))
-		print("Publishing to %s" % (self.topic))
+		logger.info("Scanner connected to message broker with result code " + str(rc))
+		logger.info("Publishing to %s" % (self.topic))
 			
 	def _on_disconnect(self, client, userdata, rc):
 		if rc != 0:
-			print('Unexpected disconnection! (%s)' % (rc))
+			logger.warning('Unexpected disconnection! (%s)' % (rc))
 			time.sleep(5)
-			print('Reconnecting scanner...')
+			logger.warning('Reconnecting scanner...')
 			self.mqttc.reconnect()
 		else:
-			print('Scanner disconnected from message broker')		
+			logger.info('Scanner disconnected from message broker')		
 	
 	def _stop(self):
 		print('Stopping scanner...')
@@ -119,7 +122,7 @@ class PresenceSensor():
 	# define required iBeacon ID keys
 	BEACON_ID_KEYS = ("UUID", "Major", "Minor")
 	
-	def __init__(self, welcome_callback=None, last_one_out_callback=None, IP='localhost', port='1883', topic='ibeacon/adverts', scan_timeout=datetime.timedelta(seconds=300)):
+	def __init__(self, welcome_callback=None, last_one_out_callback=None, IP='localhost', port=1883, topic='ibeacon/adverts', scan_timeout=datetime.timedelta(seconds=300)):
 		self.IP = IP
 		self.port = port
 		self.scan_timeout = scan_timeout
@@ -140,7 +143,7 @@ class PresenceSensor():
 	def register_beacon(self, beacon, owner):
 		# add beacon to list of registered beacons
 		for key in PresenceSensor.BEACON_ID_KEYS:
-			if key not in beacon.keys(): 
+			if key not in list(beacon.keys()): 
 				return "Failed to register beacon (missing or invalid ID)"
 		if self._get_beacon(beacon) == None:
 			self.registered_beacons.append({"owner": owner, "ID": beacon, "last_seen": datetime.datetime.now(), "in": False})
@@ -178,7 +181,7 @@ class PresenceSensor():
 	
 	def _loop(self):
 		while self.on:
-			# loop MQTT client (blocking) to periodically check for messages
+			# loop MQTT client once (blocking) to periodically check for messages
 			self.mqttc.loop()
 			# if each beacon not seen for > SCAN_TIMEOUT then set 'in' to False. Call 
 			# last_one_out_callback() first time no beacons found after timeout.
@@ -186,7 +189,7 @@ class PresenceSensor():
 			beacons_found = 0
 			for b in self.registered_beacons:
 				if now - b['last_seen'] > self.scan_timeout:
-					if b['in']: print('[%s] Bye %s!' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), b['owner']))
+					if b['in']: print(('[%s] Bye %s!' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), b['owner'])))
 					b['in'] = False
 				else:
 					beacons_found += 1
@@ -196,20 +199,20 @@ class PresenceSensor():
 			time.sleep(0.1)
 
 	def _on_connect(self, client, userdata, flags, rc):
-		print("Presence Sensor connected to message broker with result code " + str(rc))
+		print(("Presence Sensor connected to message broker with result code " + str(rc)))
 		# Subscribing in on_connect() means that if we lose the connection and
 		# reconnect then subscriptions will be renewed.
-		print('Subscribing to %s' % (self.topic))
+		print(('Subscribing to %s' % (self.topic)))
 		self.mqttc.subscribe(self.topic)
 		
 	def _on_disconnect(self, client, userdata, rc):
 		if rc != 0:
-			print('Unexpected disconnection! (%s)' % (rc))
-		print('Presence Sensor disconnected from message broker')		
+			logger.warning('Unexpected disconnection! (%s)' % (rc))
+		logger.info('Presence Sensor disconnected from message broker')		
 	
 	def _message_handler(self, client, userdata, message):
 		# parse beacon IDs from message and fetch beacon from registered list
-		msg = json.loads(message.payload)
+		msg = json.loads(message.payload.decode('utf-8'))
 		beacon_ID = {}
 		for key in PresenceSensor.BEACON_ID_KEYS:
 			beacon_ID[key] = msg[key]
@@ -218,7 +221,7 @@ class PresenceSensor():
 		if (beacon != None):
 			# update last seen datetime and set 'in' to True
 			beacon['last_seen'] = datetime.datetime.now()
-			# print("Beacon %s seen at %s" % (beacon['ID'], beacon['last_seen'].strftime('%Y-%m-%d %H:%M:%S')))
+			logger.debug("Beacon %s seen at %s" % (beacon['ID'], beacon['last_seen'].strftime('%Y-%m-%d %H:%M:%S')))
 			if beacon['in'] == False:
 				beacon['in'] = True
 				self.welcome_callback(beacon['owner'])
