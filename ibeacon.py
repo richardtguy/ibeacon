@@ -35,7 +35,7 @@ class Scanner():
 		signal.signal(signal.SIGINT, self._exit_handler)
 		
 	def scan_forever(self):		
-		print("Starting iBeacon scanner...")
+		logger.info("Starting iBeacon scanner...")
 		self.on = True
 
 		# connect to message broker
@@ -43,14 +43,14 @@ class Scanner():
 		
 		# start scanning for bluetooth packets in subprocess
 		if os.uname()[0] == 'Linux':
-			self.lescan_p = subprocess.Popen(['sudo', 'hcitool', '-i', self.hci, 'lescan', '--duplicates'], stdout=DEVNULL)
+			self.lescan_p = subprocess.Popen(['sudo', 'hcitool', '-i', self.hci, 'lescan', '--duplicates'], stdout=DEVNULL, stderr=DEVNULL)
 
 		# start subprocesses in shell to dump and parse raw bluetooth packets		
 		if PLATFORM == 'Linux':
 			logger.debug("Running on Linux...")
 			hcidump_args = ['hcidump', '--raw', '-i', self.hci]
 			parse_args = ['./ibeacon_parse.sh']
-			self.hcidump_p = subprocess.Popen(hcidump_args, stdout=subprocess.PIPE)
+			self.hcidump_p = subprocess.Popen(hcidump_args, stdout=subprocess.PIPE, stderr=DEVNULL)
 			self.parse_p = subprocess.Popen(parse_args, stdout=subprocess.PIPE, stdin=self.hcidump_p.stdout, stderr=DEVNULL)
 
 		elif PLATFORM == 'Darwin':
@@ -90,7 +90,7 @@ class Scanner():
 			logger.info('Scanner disconnected from message broker')		
 	
 	def _stop(self):
-		print('Stopping scanner...')
+		logger.info('Stopping scanner...')
 		self.on = False
 		self.mqttc.disconnect()
 		if PLATFORM == 'Linux':
@@ -100,7 +100,7 @@ class Scanner():
 			self.hcidump_p.wait()
 		self.parse_p.terminate()
 		self.parse_p.wait()
-		print('Scanner stopped')
+		logger.info('Scanner stopped')
 	
 	def _exit_handler(self, signal, frame):
 		self._stop()
@@ -154,7 +154,7 @@ class PresenceSensor():
 		return "Deregistered beacon %s" % (beacon)
 
 	def start(self):
-		print("Starting Presence Sensor...")
+		logger.info("Starting Presence Sensor...")
 		self.mqttc.connect(self.IP, port=self.port)
 		self.on = True
 		# start non-blocking loop for presence sensor
@@ -162,7 +162,7 @@ class PresenceSensor():
 		self.thread.start()
 	
 	def stop(self):
-		print("Stopping Presence Sensor...")
+		logger.info("Stopping Presence Sensor...")
 		self.on = False
 		self.thread.join()
 		# disconnect client object from MQTT server
@@ -189,7 +189,7 @@ class PresenceSensor():
 			beacons_found = 0
 			for b in self.registered_beacons:
 				if now - b['last_seen'] > self.scan_timeout:
-					if b['in']: print(('[%s] Bye %s!' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), b['owner'])))
+					if b['in']: logger.info(('[%s] Bye %s!' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), b['owner'])))
 					b['in'] = False
 				else:
 					beacons_found += 1
@@ -199,10 +199,10 @@ class PresenceSensor():
 			time.sleep(0.1)
 
 	def _on_connect(self, client, userdata, flags, rc):
-		print(("Presence Sensor connected to message broker with result code " + str(rc)))
+		logger.info(("Presence Sensor connected to message broker with result code " + str(rc)))
 		# Subscribing in on_connect() means that if we lose the connection and
 		# reconnect then subscriptions will be renewed.
-		print(('Subscribing to %s' % (self.topic)))
+		logger.info(('Subscribing to %s' % (self.topic)))
 		self.mqttc.subscribe(self.topic)
 		
 	def _on_disconnect(self, client, userdata, rc):

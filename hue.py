@@ -2,7 +2,7 @@ import requests, json, datetime, calendar, subprocess, signal, time, random, os,
 import log
 import config
 
-__version__ = '1.3.1'
+__version__ = '1.3.1+'
 
 """
 Bridge and HueLight objects are not threadsafe, so use locks to ensure only one process
@@ -26,10 +26,7 @@ class DaylightSensor():
 	def __init__(self, lat, lng):
 		"""
 		Initialise sensor
-		"""
-		# set up log
-		self.logger = log.TerminalLog()
-		
+		"""		
 		self.update_daylight_due = datetime.datetime.now() + datetime.timedelta(hours=24)
 		self.lat = lat
 		self.lng = lng
@@ -49,11 +46,10 @@ class DaylightSensor():
 			sunrise_str = r.json()['results']['sunrise']
 			sunset_str = r.json()['results']['sunset']
 		except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError) as err:
-			self.logger.warning("Failed to update daylight times! (%s)" % (err))
+			logger.warning("Failed to update daylight times! (%s)" % (err))
 			return self.daylight_times
 		sunrise = datetime.datetime.strptime(sunrise_str,'%I:%M:%S %p').replace(date.year, date.month, date.day)
 		sunset = datetime.datetime.strptime(sunset_str,'%I:%M:%S %p').replace(date.year, date.month, date.day)
-		self.logger.success('New daylight times (UTC) (sunrise: %s, sunset: %s), next update due at %s' % (sunrise, sunset, self.update_daylight_due))
 		logger.info('New daylight times (UTC) (sunrise: %s, sunset: %s), next update due at %s' % (sunrise, sunset, self.update_daylight_due))
 		self.update_daylight_due = datetime.datetime.utcnow() + datetime.timedelta(hours=24)
 
@@ -134,9 +130,6 @@ class Controller():
 		"""
 		Initialise controller and read rules from file
 		"""
-		# set up log
-		self.logger = log.TerminalLog()
-		
 		# UK time zone object
 		self.tz = UKTimeZone()
 		
@@ -215,7 +208,6 @@ class Controller():
 		Apply triggered action to lights defined in rule (or all lights if none given)
 		"""
 		try:
-			self.logger.success('Triggered action %s at %s' % (rule, datetime.datetime.now().strftime('%a %d/%m/%Y %H:%M:%S')))
 			logger.info('Triggered action %s at %s' % (rule, datetime.datetime.now().strftime('%a %d/%m/%Y %H:%M:%S')))
 			if rule['action'] == 'on':
 				if len(rule['lights']) == 0:
@@ -234,13 +226,11 @@ class Controller():
 			if rule['action'] == 'scene':
 				self.bridge.recall_local_scene(rule['scene'])
 		except TypeError:
-			self.logger.err('Action failed %s' % (rule))
 			logger.error('Action failed %s' % (rule))
 			
 		# turn all lights off again if no-one is home
 		if self.presence_sensor != None:
 			if not self.presence_sensor.query():
-				self.logger.info('There\'s no-one home; switching lights off')
 				logger.info('There\'s no-one home; switching lights off')
 				for light in self.bridge:
 					light.off()
@@ -279,7 +269,7 @@ class Bridge():
 			# read list of lights from file and write to self.lights
 			with open(fname, 'r') as f:
 				saved_lights = json.load(f)
-			print('Retrieving saved list of lights...')
+			print('Retrieving saved list of lights... ', end='')
 			for l in saved_lights:
 				if l['type'] == 'Hue':
 					# create HueLight object with name, ID and UID from file
@@ -288,6 +278,7 @@ class Bridge():
 					logger.info(self.get(l['name']).name())
 				elif l['type'] == 'Lightify':
 					self.__lightify_connected = True
+			print('OK')
 
 			if self.__lightify_connected:
 				# if Lightify lights in saved list, connect to Lightify Gateway to create internal list of lights
@@ -331,13 +322,14 @@ class Bridge():
 			try:
 				os.remove('saved_scenes.json')
 			except OSError:
-				pass	
+				pass
 		
 		# read saved scenes from file
-		print('Loading saved scenes...')
+		print('Loading saved scenes... ', end='')
 		try:
 			with open('saved_scenes.json', 'r') as f:
 				self.__scenes = json.load(f)
+			print('OK')
 		except IOError:
 			print('No saved scenes found.')
 			self.__scenes = {}

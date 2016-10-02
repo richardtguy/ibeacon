@@ -7,7 +7,7 @@ import ibeacon, hue, config, fliclib, log
 
 # set up logging
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG, filename='lights.log')
 
 # set up flic log
 log = log.TerminalLog()
@@ -19,11 +19,12 @@ lock = threading.Lock()
 
 # signal handler to exit gracefully on Ctrl+C
 def exit_handler(signal, frame):
-	print('Exiting...')
+	print('Exiting...', end=' ')
 	presence_sensor.stop()
 	scan_p.terminate()
 	flic_client.close()
 	flic_thread.join()
+	print('OK')
 	sys.exit(0)
 signal.signal(signal.SIGINT, exit_handler)
 
