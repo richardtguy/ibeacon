@@ -3,5 +3,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# User configuration files
+# User configuration and log files
 config.py
+*.log
