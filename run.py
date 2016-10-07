@@ -17,7 +17,7 @@ def run():
 	)
 	
 	print("Starting light controller, press [Ctrl+C] to exit.")
-	logger.info("Starting light controller, press [Ctrl+C] to exit.")
+	logger.info("Starting light controller...")
 	
 	# interlock to ensure that only one thread can access shared resources at a time
 	lock = threading.Lock()
@@ -65,7 +65,6 @@ def run():
 			with lock:
 				logger.info("Switching on lights associated with button " + channel.bd_addr)
 				for light in groups[channel.bd_addr]['group']:
-					logger.info("Getting light %s" % (light))					
 					try:
 						bridge.get(light).on()
 					except KeyError:

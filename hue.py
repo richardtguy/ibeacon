@@ -461,6 +461,7 @@ class HueLight():
 		"""
 		Switch the light on with previously saved settings
 		"""
+		logger.info('Switching light %s on with saved settings' % (self.name()))
 		self.recall_state(self.__state)
 
 	def off(self):
@@ -470,18 +471,15 @@ class HueLight():
 		self.__on_or_off('off')
 		
 	def __on_or_off(self, operation):
+		logger.info('Switching light %s %s' % (self.name(), operation))
 		url = 'http://'+HueLight.IP+'/api/'+HueLight.username+'/lights/'+self.__ID+'/state'
 		if operation == 'on':
 			payload = '{"on": true}'
 		else:
 			payload = '{"on": false}'
 		r = requests.put(url, data=payload)
-		try:
-			r.raise_for_status()
-			logger.info(self.__name + ': ' + operation)
-		except requests.exceptions.HTTPError:
-			logger.error(self.__name + ': ' + operation)
-
+		self._check_rc(r)
+			
 	def save_state(self):
 		"""
 		Fetch current state of light from bridge and save
@@ -518,12 +516,20 @@ class HueLight():
 		payload = {"on":True,"bri":state['bri']}
 		payload.update(color_command)
 		r = requests.put(url, json=payload)
-		try:
-			r.raise_for_status()
-			logger.info(self.__name + ' ' + r.text)
-		except requests.exceptions.HTTPError:
-			logger.error(self.__name + ' ' + r.text)
+		self._check_rc(r)
 
 	def update_state(self, state):
 		# update saved parameters
 		self.__state = state
+		
+	def _check_rc(self, r):
+		try:
+			r.raise_for_status()
+		except requests.exceptions.HTTPError:
+			logger.warning('HTTP status: %s (%s)' % (r.text))
+		else:
+			for rc in r.json():
+				if 'success' in rc:
+					logger.debug(rc)
+				else:
+					logger.warning(rc)

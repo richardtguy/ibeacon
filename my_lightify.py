@@ -123,7 +123,6 @@ class LightifyLight(Lightify):
 		Switch on light to previously saved state
 		"""
 		logger.info('Recalling state: %s' % (state))
-		self._on_off(ON)
 		# recall saved brightness & colour temperature
 		self.set_bri(state['bri'])
 		self.set_temp(state['temp'])
@@ -138,27 +137,31 @@ class LightifyLight(Lightify):
 		"""
 		Set the brightness of the light
 		"""
-		logger.info('Setting brightness of light %s to %s' % (self._name, bri))		
+		logger.debug('Setting brightness of light %s to %s' % (self._name, bri))		
 		data = struct.pack("<BH",bri, transition)
 		command = self._build_command(COMMAND_BRI, data=data)
-		self._send_command(command)
+		response = self._send_command(command)
+		self._check_rc(response)
 
 	def set_temp(self, temp, transition=10):
 		"""
 		Set the colour temperature of the light
 		"""
-		logger.info('Setting temp of light %s to %s' % (self._name, temp))		
+		logger.debug('Setting temp of light %s to %s' % (self._name, temp))		
 		data = struct.pack("<HH", temp, transition)
 		command = self._build_command(COMMAND_TEMP, data=data)
-		self._send_command(command)
+		response = self._send_command(command)
+		self._check_rc(response)
 
 	def _on_off(self, on_off):
 		"""
 		Switch the light on or off
 		"""
+		logger.debug('Switching light on to %s' % (self._name, on_off))	
 		data = struct.pack("<B",on_off)
 		command = self._build_command(COMMAND_ONOFF, data=data)
-		self._send_command(command)
+		response = self._send_command(command)
+		self._check_rc(response)
 
 	def _build_command(self, command, data=b''):
 		"""
@@ -177,6 +180,12 @@ class LightifyLight(Lightify):
 			self._addr
 		) + data		
 
+	def _check_rc(self, response):
+		# seventh byte of response is a status code; 0 = success, 21 = addr not found	
+		if response[6] == 0:
+			logger.debug('OK')
+		else:
+			logger.warning('Operation failed (%s)' % (response[6]))	
 
 class LightifyGateway(Lightify):
 
