@@ -1,6 +1,5 @@
 # Built-in modules
 import time, datetime, json, threading, os, signal, sys, subprocess, logging
-from io import StringIO
 
 # Installed modules
 import paho.mqtt.client as mqtt
@@ -221,7 +220,7 @@ class PresenceSensor():
 		if (beacon != None):
 			# update last seen datetime and set 'in' to True
 			beacon['last_seen'] = datetime.datetime.now()
-			logger.debug("Beacon %s seen at %s" % (beacon['ID'], beacon['last_seen'].strftime('%Y-%m-%d %H:%M:%S')))
+			#logger.debug("Beacon %s seen at %s" % (beacon['ID'], beacon['last_seen'].strftime('%Y-%m-%d %H:%M:%S')))
 			if beacon['in'] == False:
 				beacon['in'] = True
 				self.welcome_callback(beacon['owner'])
