@@ -35,26 +35,6 @@ class DaylightSensor():
 		now = datetime.datetime.now()
 		self.daylight_times = self._get_daylight_times(now)
 
-	def _get_daylight_times(self, date):
-		"""
-		Return sunrise and sunset times from sunrise-sunset.org as datetime objects
-		"""
-		payload = {'lat': self.lat, 'lng': self.lng, 'date': date.isoformat()}
-		try:
-			r = requests.get('http://api.sunrise-sunset.org/json', params=payload, timeout=30)
-			r.raise_for_status()
-			sunrise_str = r.json()['results']['sunrise']
-			sunset_str = r.json()['results']['sunset']
-		except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError) as err:
-			logger.warning("Failed to update daylight times! (%s)" % (err))
-			return self.daylight_times
-		sunrise = datetime.datetime.strptime(sunrise_str,'%I:%M:%S %p').replace(date.year, date.month, date.day)
-		sunset = datetime.datetime.strptime(sunset_str,'%I:%M:%S %p').replace(date.year, date.month, date.day)
-		logger.info('New daylight times (UTC) (sunrise: %s, sunset: %s), next update due at %s' % (sunrise, sunset, self.update_daylight_due))
-		self.update_daylight_due = datetime.datetime.utcnow() + datetime.timedelta(hours=24)
-
-		return {'sunrise': sunrise, 'sunset': sunset}
-		
 	def query(self, time=None):
 		"""
 		Return True if in daylight hours, False if not
@@ -76,6 +56,47 @@ class DaylightSensor():
 			return True
 		else:
 			return False
+
+	def sunrise(self):
+		"""
+		Return stored sunrise time as datetime object
+		"""
+		# update daylight times if >24 hours old
+		if datetime.datetime.utcnow() > self.update_daylight_due:
+			self.daylight_times = self._get_daylight_times(time)
+		# return sunrise
+		return self.daylight_times['sunrise']
+
+	def sunset(self):
+		"""
+		Return stored sunset time as datetime object
+		"""
+		# update daylight times if >24 hours old
+		if datetime.datetime.utcnow() > self.update_daylight_due:
+			self.daylight_times = self._get_daylight_times(time)
+		# return sunset
+		return self.daylight_times['sunset']
+
+	def _get_daylight_times(self, date):
+		"""
+		Return sunrise and sunset times from sunrise-sunset.org as datetime objects
+		"""
+		payload = {'lat': self.lat, 'lng': self.lng, 'date': date.isoformat()}
+		try:
+			r = requests.get('http://api.sunrise-sunset.org/json', params=payload, timeout=30)
+			r.raise_for_status()
+			sunrise_str = r.json()['results']['sunrise']
+			sunset_str = r.json()['results']['sunset']
+		except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError) as err:
+			logger.warning("Failed to update daylight times! (%s)" % (err))
+			return self.daylight_times
+		sunrise = datetime.datetime.strptime(sunrise_str,'%I:%M:%S %p').replace(date.year, date.month, date.day)
+		sunset = datetime.datetime.strptime(sunset_str,'%I:%M:%S %p').replace(date.year, date.month, date.day)
+		logger.info('New daylight times (UTC) (sunrise: %s, sunset: %s), next update due at %s' % (sunrise, sunset, self.update_daylight_due))
+		self.update_daylight_due = datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+
+		return {'sunrise': sunrise, 'sunset': sunset}
+
 
 class UKTimeZone(datetime.tzinfo):
 	"""
@@ -167,8 +188,6 @@ class Controller():
 		"""
 		# timer
 		now = datetime.datetime.utcnow()
-		# daylight sensor
-		daylight = self.daylight_sensor.query()
 
 		# update trigger times to today before checking against time now
 		self._update_times_to_today(now)		
@@ -177,20 +196,32 @@ class Controller():
 		for rule in self.rules:
 			# check rule applies today
 			if self._check_weekday(rule):
-				# daylight rules (triggered at sunrise or sunset)
+
+				# trigger time
 				if (rule['trigger'] == 'daylight'):
-					if self.last_tick_daylight != daylight:
-						if (rule['time'] == 'sunset') and not daylight:
-							self._apply_action(rule)
-						if (rule['time'] == 'sunrise') and daylight:
-							self._apply_action(rule)
-				# timer rules (triggered at set times defined in local (UK) time)
+					# daylight rules: set trigger time to sunrise/sunset +/- offset (UTC)
+					if rule['time'] == 'sunrise':
+						trigger_time = self.daylight_sensor.sunrise()
+					elif rule['time'] == 'sunset':
+						trigger_time = self.daylight_sensor.sunset()
+					else:
+						logger.error('Incorrect format for rule (%s)' % (rule))
+					try:
+						# add offset in minutes
+						trigger_time += datetime.timedelta(minutes=rule['offset'])
+					except KeyError:
+						pass
 				else:
-					if (self.last_tick < rule['time'] + self.tz.utcoffset(rule['time'])) and (now > rule['time']  + self.tz.utcoffset(rule['time'])):
-						self._apply_action(rule)
+					# timer rules: set trigger time to rule time adjusted to UTC
+					trigger_time = rule['time'] + self.tz.utcoffset(rule['time'])
+
+				logger.debug('Trigger time: %s, time now: %s' % (trigger_time.strftime('%a %d/%m/%Y %H:%M:%S'), now.strftime('%a %d/%m/%Y %H:%M:%S')))
+
+				# trigger rule if trigger_time has passed since last loop
+				if (self.last_tick < trigger_time) and (now > trigger_time):
+					self._apply_action(rule)
 		
 		self.last_tick = now
-		self.last_tick_daylight = daylight
 
 	def _check_weekday(self, rule, today=None):
 		if today is None:

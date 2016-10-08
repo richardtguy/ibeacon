@@ -152,5 +152,5 @@ if __name__ == "__main__":
 	except Exception:
 		print('Fatal error! (%s)' % (sys.exc_info()[1]))
 		# notify IFTTT that script has crashed and reraise exception
-		r = requests.get('https://maker.ifttt.com/trigger/lights/with/key/'+config.IFTTT_KEY)
+		r = requests.get('https://maker.ifttt.com/trigger/lights_app_crashed/with/key/'+config.IFTTT_KEY)
 		raise
