@@ -1,4 +1,4 @@
-# jubilee
+# jubilee-lights
 Control smart lights at home using a Raspberry Pi with bluetooth buttons, presence monitoring, timers and daylight rules, and remote (internet) control.
 
 ##Overview
