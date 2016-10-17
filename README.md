@@ -1,42 +1,50 @@
 # ibeacon
-Presence monitoring using iBeacons and Raspberry Pi to control smart lights at home.
+Control smart lights at home using a Raspberry Pi with bluetooth buttons, presence monitoring, timers and daylight rules, and remote (internet) control.
 
 ##Overview
-The goal of this project was to implement a practical system to switch on the Philips Hue lights in our house when either my girlfriend or I get home, and switch them off again when we're out.
+This project implements a practical system to control the Philips Hue and Osram Lightify lights in our house using a Raspberry Pi 3 running Raspbian.  Key features include:
+- Bluetooth buttons: Switch groups of lights on or off using Flic bluetooth buttons.
+- Presence monitoring: Use [bluetooth beacon key fobs](https://www.beaconzone.co.uk/ibeacon/PC037-E) to switch the lights on when either of us gets home, and switch them off again when we're out.
+- Timers: Switch lights on, off and recall scenes at set times of the day.
+- Daylight: Switch lights on, off and recall scenes at sunrise or sunset.
 
-Although this can be done using the Philips Hue mobile app and 3rd-party services like IFTTT, they can be slow to respond (we've fumbled for the lightswitch in the dark for a while before the IFTTT app on my phone finally connected to the wifi and realised we're home) and neither really cope with the concept that more than one person might live in the same household (without some pretty ugly hacking).
+I\'ve used Flic bluetooth buttons from Shortcut Labs.  Server and client Python libraries are available [here]([https://github.com/50ButtonsEach/fliclib-linux-hci](https://github.com/50ButtonsEach/fliclib-linux-hci).  Verified buttons communicate with the Raspberry Pi via a server application which passes click events to a client.  The client application switches lights on or off depending on the click type (single click or hold).  Buttons are associated with groups of lights as defined in a JSON formatted file `flic_button_groups.json`.
 
-A more practical and elegant solution is to use [bluetooth beacon key fobs](https://www.beaconzone.co.uk/ibeacon/PC037-E) I picked up for £11 each.  In this project, I've used a Raspberry Pi 3 with a Bluetooth LE USB dongle (the built-in bluetooth controller is busy [managing the flic buttons we use as manual light switches](https://github.com/richardtguy/flic-hue)...) to listen for the advertisment packets from the beacons, and so keep track of who's at home.  If it hasn't heard from either beacon after a minute or so, it switches all the lights off - simple!
+For the presence monitoring, I\'ve used a Raspberry Pi 3 with a Bluetooth LE USB dongle to listen for the advertisment packets from some [bluetooth beacon key fobs](https://www.beaconzone.co.uk/ibeacon/PC037-E), and so keep track of who's at home.  If it hasn't heard from either beacon after five minutes, it switches all the lights off.
 
-We like to change the lighting scenes depending on the time of day (warm whites in the evening, cooler shades during the day).  In order to control the lights based on whether or not we're at home and sunrise and sunset times, I needed to expand the basic interface to the Hue bridge I implemented for the flic buttons.  This code runs on the Rasberry Pi and controls the lights directly via the API on the Hue bridge based on a set of rules defined read from a file on startup.  Now we can schedule lights to come on at certain times, but only if there's someone home.  And when we get home the lights come on in the appropriate scene for the time of day.
+The project is implemented using Python (and a shell script adapted from one I found [here](http://developer.radiusnetworks.com/ibeacon/idk/ibeacon_scan) by Radius Networks to parse the beacon advertisement packets).  The Python classes are documented below.
+
+We like to change the lighting scenes depending on the time of day (warm whites in the evening, cooler shades during the day).  In order to control the lights based on whether or not we're at home and sunrise and sunset times, I implemented an interface to the Hue bridge and Lightify Gateway.  This code controls the lights based on a set of rules defined read from a file on startup.  The Raspberry Pi communicates with the Hue bridge via the [official API](http://www.developers.meethue.com/philips-hue-api), and with the Lightify Gateway via a binary protocol documented [here](http://sarajarvi.org/lightify-haltuun/en.php).
+
+We can schedule lights to come on at certain times, but only if there's someone home.  And when we get home the lights come on in the appropriate scene for the time of day.
 
 The project is implemented using Python (and a shell script adapted from one I found [here](http://developer.radiusnetworks.com/ibeacon/idk/ibeacon_scan) by Radius Networks to parse the beacon advertisement packets).  The Python classes are documented below.
 
 Potential improvements:
-- It  might be possible to integrate the presence sensor directly with the Hue bridge, so that rules implemented on the bridge itself could be aware of whether there's anyone home.  This would avoid having to run a controller to execute daily lighting schedules on the Pi.
-- Battery life of the beacons is likely to be an issue (<12 months), with unreliable detection when they get low leading to the lights cycling on and off...  I'll experiment with the advertisement frequency and the length of time to scan for beacons - higher frequency means more responsive and reliable detection, but shorter battery life.  Beacons are also available that broadcast their own battery level - I might implement a notification by email when they need a new battery.
+- Battery life of the beacons is likely to be an issue (<12 months), with unreliable detection when they get low leading to the lights cycling on and off...  I\'ll experiment with the advertisement frequency and the length of time to scan for beacons - higher frequency means more responsive and reliable detection, but shorter battery life.  Beacons are also available that broadcast their own battery level - I might implement a notification by email when they need a new battery.
 
-##Usage
+##Example usage
 - Start MQTT message broker on `localhost` (OSX: `/usr/local/sbin/mosquitto`, Linux: `sudo /etc/init.d/mosquitto start`)
 
-- Start scanning for ibeacon advertisements.
-`$ sudo python start_scanner.py`
+- Start Flic button server: `sudo ./flicd -f flic.sqlite3`
 
-- An example implementation, including use of daylight and timer rules and a presence sensor, is included in `controller.py`
-`$ python controller.py`
+- An example implementation, including use of daylight and timer rules, Flic buttons, a presence sensor, and remote control, is included in `run.py`.  Run this in a new terminal.
+`$ sudo python run.py`
+
+Note that, depending on which features you\'re using, various configuration parameters are required.  In the example, these are supplied in a configuration file, `config.py`.
 
 ##Documentation
 
 ###class ibeacon.Scanner(*IP='localhost', port='1883', hci='hci0'*)
 On Linux the `hcitools` command `lescan` is used to start scanning for bluetooth packets (using the `--duplicates` option to catch repeated advertisements from the same beacons).  The script then runs `hcidump --raw`, and pipes the output through a bash script that parses the raw stream into ibeacon advertisements in JSON format.  The scanner publishes the adverts to an MQTT message broker on the topic `ibeacon/adverts`.  The IP address and port of the broker, which may be supplied as arguments, default to `localhost:1883`.  An experimental binary is provided on OSX to scan and parse the packets into the same format, but response times are currently much slower than on Linux. 
 
-####ibeacon.Scanner.scan_forever()
-Start the scanner by calling the method `scan_forever()`.  This method is blocking.
+####ibeacon.Scanner.scan\_forever()
+Start the scanner by calling the method `scan_forever()`.  This method is blocking, so should typically be run in a separate thread.
 
-###class ibeacon.PresenceSensor(*first_one_in_callback=None, last_one_out_callback=None, IP='localhost', port='1883', scan_timeout=300*)
+###class ibeacon.PresenceSensor(*first\_one\_in\_callback=None, last\_one\_out\_callback=None, IP='localhost', port='1883', scan\_timeout=300*)
 The PresenceSensor subscribes to the `ibeacon/adverts` topic to receive ibeacon advertisements from the Scanner object via an MQTT message broker.  The IP address and port for the broker may be supplied as arguments, or default to the localhost on port 1883.
 
-The `PresenceSensor` class provides a simple API to query whether members of the household are currently in or out, based on whether advertisement packets have recently been received from registered iBeacons associated with each member of the household.  The `query(beacon_owner)` method returns `True` if `beacon_owner` is in, or `False` if the iBeacon registered to them has not been detected for longer than the specified timeout.  For backwards compatibility `query()` may be called without any arguments.  In this case, it returns `True` if any of the registered members of the household are present, or `False` if no-one is home.
+The `PresenceSensor` class provides a simple API to query whether members of the household are currently in or out, based on whether advertisement packets have recently been received from registered iBeacons associated with each member of the household.  The `query(beacon_owner)` method returns `True` if `beacon_owner` is in, or `False` if the iBeacon registered to them has not been detected for longer than the specified timeout.  The `query()` may also be called without any arguments.  In this case, it returns `True` if any of the registered members of the household are present, or `False` if no-one is home.
 
 In addition, callback functions `PresenceSensor.last_one_out` and `PresenceSensor.welcome` may be specified.  When the house is occupied, `PresenceSensor.last_one_out` is called if none of the registered beacons have been detected for longer than the specified `scan_timeout` in seconds.  The `welcome_back` callback is called immediately when a registered beacon is detected after a period of longer than the specified timeout (i.e. the owner has returned after a period of absence).
 
@@ -56,63 +64,84 @@ The DaylightSensor class provides a simple API to query whether a time supplied 
 The argument `time` should be supplied as a `datetime` object in UTC (defaults to now if omitted).  If it has been more than 24 hours since daylight times were last refreshed from [sunrise-sunset.org](http://www.sunrise-sunset.org), these are refreshed.  Then returns `True` if the date supplied as an argument is during daylight hours, `False` otherwise.
 
 
-HueLight, HueBridge, and HueController classes are implemented to provide a simplified interface to the [Philips Hue API](http://www.developers.meethue.com/philips-hue-api).
+Bridge, Controller and Remote classes are implemented to provide a simplified interface to the Philips Hue and Osram Lightify lamps.  Colour, brightness and other settings are saved locally and pushed to the lamps by calling the `on()` method.  HueLight and LightifyLight objects handle the detailed implementation of the two protocols, and provide a common API.
 
-###class hue.HueLight(*name, ID*)
-The HueLight class represents a single lamp connected to the bridge.  Instances of the HueLight class may be created and used seperately or (more conveniently) created for each light stored in the bridge by the constructor of a HueBridge object.  Various methods are implemented in order to control the lamp.
+###class hue.HueLight(*name, ID, UID=None*)
+The HueLight class represents a single lamp connected to the bridge and handles details of the REST API used to communicate with the Hue Bridge.
 
-####hue.HueLight.on()
-Switches the lamp on.  (Colour, brightness and other settings are unaffected.)
+Instances of the HueLight class may be created and used separately or (more conveniently) created for each light stored in the bridge by the constructor of a Bridge object.  Various methods are implemented in order to control the lamp.  If no unique ID (UID) is supplied, a new one is created using the function uid.get\_UID().  UIDs are used rather than names to keep track of lights in scenes in order to avoid problems if there are Philips and Osram lights with the same name connected to the same Bridge object.
 
-####hue.HueLight.off()
-Switches the lamp off.  (Colour, brightness and other settings are unaffected.)
+####hue.HueLight.on(*transition=4*)
+Switches the lamp on to the most recently saved settings for colour and brightness. Specify the transition time in units of 0.1 seconds.
+
+####hue.HueLight.off(*transition=4*)
+Switches the lamp off.
 
 ####hue.HueLight.dim()
 Switches the lamp on and adjusts the brightness to a minimum setting.
 
-####hue.HueLight.save_state()
-Saves the current status of the lamp returned from the bridge into `self.state`.  May be used to e.g. reset lamp back to its previous on/off state after recalling a scene.  After calling this method `self.state['on']` is `True` if lamp was on, `False` if lamp was off when the method was called.
+####hue.HueLight.save\_state()
+Gets the current colour, brightness and other settings for the lamp from the bridge and saves to the instance variable self.\_\_state.
 
-###class hue.HueBridge(*username, IP*)
-Implements a simplified API for controlling lights connected to a Philips Hue bridge.  The constructor queries the bridge to obtain a list of connected lights.  These are stored in a dictionary self.lights, with light names as keys and corresponding HueLight objects as values.
+####hue.HueLight.update\_state(*state*)
+Saves the state object supplied as an argument to the instance variable self.\_\_state.  May be used to e.g. set the lamp settings when recalling a scene.  The syntax for the state object is manufacturer-dependent, so it is best always to retrieve this by calling Huelight.save\_state() with the lamp already set to the desired settings.
 
-A whitelisted username on the bridge, and the IP address of the bridge must be supplied as arguments.
+The my\_lightify.LightifyLight class has an identical API, and handles details of the binary protocol used to communicate with the Gateway.  The my\_lightify.LightifyGateway class is called by the Bridge object to connect to the Gateway and get details of all connected lights.
 
-Various methods are available to interact with the bridge and connected lights.  Lights can be accessed individually by name in HueBridge.lights, or collectively by iterating over the bridge.  E.g. to switch off all lights connected to the bridge, simply use:
+###class hue.Bridge(*username, IP*)
+Implements a simplified API for controlling lights connected to a Hue bridge and/or Osram Lightify Gateway.  The constructor loads details of saved lights from a file `saved\_lights.json` or, if this file is not present, queries the bridge and/or gateway to obtain a new list of connected lights.  These are stored in a dictionary `self.lights`, with light names as keys and corresponding HueLight or LightifyLight objects as values.
+
+For the Philips Hue Bridge, a whitelisted username on the bridge, and the IP address of the bridge must be supplied as arguments.  For the Osram Lightify Gateway, the IP address of the gateway must be supplied.  Both must be connected to the local network.
+
+Various methods are available to interact with the bridge and connected lights.  Lights can be accessed individually by name in Bridge.lights, or collectively by iterating over the bridge.  E.g. to switch off all lights connected to the bridge, simply use:
 ```python
 for light in bridge:
 	light.off()
 ```
 
-####hue.HueBridge.get(light_name)
-Returns the HueLight object with the corresponding name `light_name`.  The light can then e.g. be switched on using `HueBridge.get(light_name).on()`.
+####hue.Bridge.get(*light\_name*)
+Returns the HueLight object with the corresponding name `light\_name`.  The light can then e.g. be switched on using `HueBridge.get(light_name).on()`.
 
-####hue.HueBridge.recall\_scene(scene\_id)
-Recalls a scene stored on the bridge with the given id.  Note that the scene is applied to all lamps connected to the bridge, and current on/off states are preserved.
+####hue.Bridge.recall\_local\_scene(*scene_name, transition=4*)
+Recalls a scene stored in a local file, `saved\_scenes\_.json`.  Note that the scene is applied to all lamps connected to the bridge.  The new settings are pushed to any lights that are currently on.
 
-###class hue.HueController(*bridge, rules, daylight_sensor, presence_sensor=None*)
-The HueController class controls light settings based on a set of rules.  `bridge` and `daylight_sensor` objects must be passed as arguments when the HueController instance is created.  Optionally a `presence_sensor` object may be passed to make the controller aware of whether or not anyone is home.  
+####hue.Bridge.save\_scene\_locally(*scene_name*)
+Saves the current settings of all lights to a local file `saved\_scenes\_.json`.
 
-The bridge should be a `hue.HueBridge` object representing an actual Hue bridge.  Implementation details of the daylight and presence sensors are unimportant, but both should expose a `query()` method that returns True during hours of daylight and False at night for the daylight sensor and True if the house is occupied, False if not for the presence sensor. 
+###class hue.Controller(*bridge, rules, daylight\_sensor, presence\_sensor=None*)
+The Controller class controls light settings based on a set of rules.  `bridge` and `daylight_sensor` objects must be passed as arguments when the HueController instance is created.  Optionally a `presence_sensor` object may be passed to make the controller aware of whether or not anyone is home.  
 
-A single method is implemented as interface to the HueController.  Call the `loop_once()` method periodically to implement any rules for which the trigger time has been passed since the last call to `loop_once()`.  The class handles conversion between trigger times specified in local (UK) time and system time.
+The bridge should be a `hue.Bridge` object.  Implementation details of the daylight and presence sensors are unimportant, but both should expose a `query()` method that returns True during hours of daylight and False at night for the daylight sensor and True if the house is occupied, False if not for the presence sensor. 
 
-####hue.HueController.loop_once()
+A single method is implemented as interface to the Controller.  Call the `loop_once()` method periodically to implement any rules for which the trigger time has been passed since the last call to `loop_once()`.  The class handles conversion between trigger times specified in local (UK) time and system time.
+
+####hue.Controller.loop\_once()
 Action any rules for which the trigger time has passed since the last call to `loop_once()`.  Call this method periodically in a loop.
 
+###class hue.Remote(*host, port, uname, pword, bridge, topic='lights'*)
+The hue.Remote class implements a very simple interface to control the lights via the internet by connecting to a cloud MQTT message broker.  The Remote object connects to an MQTT server using the supplied credentials and subscribes to the supplied topic.  It then parses messages published to this topic using the syntax for rules as described below.  Valid actions are 'on', 'off' or 'scene', and lists of light names may be supplied.
+
+####hue.Remote.start()
+In a new thread, connect to the MQTT message broker, listen for new messages and handle actions.
+
+####hue.Remote.stop()
+Disconnect from the MQTT message broker.
+
+
 ###Rules
-Rules for triggering actions are read from a JSON formatted file when the HueController object is constructed.  The path to the file must be passed to the HueController object as an argument. No checking of the format or content of the rules is performed.
+Rules for triggering actions are read from a JSON formatted file when the Controller object is constructed.  The path to the file must be passed to the Controller object as an argument. No checking of the format or content of the rules is performed.
 
 | Field | Description |
 |:---|:---|
 | `trigger` | Either `daylight` in which case the action is triggered at sunrise or sunset, or `timer` where the action is triggered at a specified time. |
 | `time` | If `trigger` is set to `daylight`, `time` should be either sunrise or sunset.  The local sunrise/sunset times are obtained from the DaylightSensor object passed to the HueController. If the `trigger` is `timer`, then a local (UK) time should be specified in HH:MM format.|
 | `action` | `on`/`off` to switch selected lights on or off at the specified time, or `scene` to recall a scene on the bridge. |
+| `transition` (optional) | The time over which the lights should fade on or off, in 1/10th seconds. |
 | `lights` (required if `action` is `on` or `off`) | The specified action is applied to the lights listed by name.  E.g. `["Hall 1", "Hall 2"]` Specifying an empty list `[]` applies the rule to all lights connected to the bridge. |
 | `scene` (required if `action` is `scene`) | The id of the scene stored on the bridge to be recalled. | 
 | `days` (optional) | Days of the week on which to apply rule supplied as a bitmask i.e. 1111100 for weekdays. |
 
-The example rule below is applied only on Wednesdays, and switches all lights connected to the bridge on at sunset.
+The example rule below is applied only on Wednesdays, and switches all lights connected to the bridge on at sunset, over a period of 30 seconds.
 
 ```json
 {
@@ -120,9 +149,25 @@ The example rule below is applied only on Wednesdays, and switches all lights co
 		"trigger": "daylight",
 		"time": "sunset",
 		"action": "on",
+		"transition": 300,
 		"lights": [],
 		"days": "0010000"
 	}
 }
 ```
+
+Actions handled by the remote control (received as messages from the MQTT broker) use a similar syntax.  The example below switches off the kitchen table light.
+
+```json
+{
+	action : {
+		"action": "off",
+		"lights": ["Kitchen table"]
+	}
+}
+```
+
+
+
+
 

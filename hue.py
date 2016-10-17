@@ -11,6 +11,7 @@ __version__ = '1.3.3'
 """
 Bridge and HueLight objects are not threadsafe, so use locks to ensure only one process
 can access these at a time (e.g. when iterating over the bridge).
+
 v1.3.3  Added remote control to apply actions via cloud MQTT
 v1.3.2	Refactored lightify classes and moved into my_lightify.py
 v1.3.1	Light states stored locally and recalled when light switched on
@@ -239,6 +240,8 @@ class Controller():
 					if (self.presence_sensor != None):
 						if (self.presence_sensor.query()) or (rule['action'] == 'scene'):
 							self.action_handler.apply_action(rule)
+					else:
+						self.action_handler.apply_action(rule)						
 		
 		self.last_tick = now
 
