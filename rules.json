@@ -25,15 +25,9 @@
 		"trigger": "daylight",
 		"action": "scene",
 		"time": "sunrise",
+		"transition": 300,
 		"scene": "daytime"
 	},
-	{
-		"trigger": "daylight",
-		"action": "on",
-		"transition": 300,
-		"time": "sunrise",
-		"lights": ["Hall 1","Hall 2","Dining table", "Kitchen cupboard"]
-	},		
 	{
 		"trigger": "daylight",
 		"action": "off",
@@ -53,14 +47,8 @@
 		"trigger": "daylight",
 		"action": "scene",
 		"time": "sunset",
-		"scene": "evening"
-	},
-	{
-		"trigger": "daylight",
-		"action": "on",
 		"transition": 300,
-		"time": "sunset",
-		"lights": []
+		"scene": "evening"
 	},	
 	{
 		"trigger": "timer",

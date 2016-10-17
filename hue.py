@@ -226,7 +226,10 @@ class Controller():
 
 				# trigger rule if trigger_time has passed since last loop
 				if (self.last_tick < trigger_time) and (now > trigger_time):
-					self._apply_action(rule)
+					# if using presence sensor, only apply on/off actions if at home
+					if (self.presence_sensor != None):
+						if (self.presence_sensor.query()) or (rule['action'] == 'scene'):
+							self._apply_action(rule)
 		
 		self.last_tick = now
 
@@ -269,13 +272,6 @@ class Controller():
 				self.bridge.recall_local_scene(rule['scene'])
 		except TypeError:
 			logger.error('Action failed %s' % (rule))
-			
-		# turn all lights off again if no-one is home
-		if self.presence_sensor != None:
-			if not self.presence_sensor.query():
-				logger.info('There\'s no-one home; switching lights off')
-				for light in self.bridge:
-					light.off(transition=transition)
 
 	def _update_times_to_today(self, today):
 		"""
@@ -447,7 +443,7 @@ class Bridge():
 			json.dump(self.__scenes, f, indent=4)
 		print('Saved scene: ' + scene_name)
 		
-	def recall_local_scene(self, scene_name):
+	def recall_local_scene(self, scene_name, transition=4):
 		"""
 		Recall saved light settings
 		"""
@@ -459,11 +455,15 @@ class Bridge():
 			logger.error('Scene not found: ' + scene_name)
 			return
 
+		# find saved state for each light in scene, update locally saved settings,
+		# and push new settings to light if currently switched on
 		for light in self.lights.values():
-			# find saved state for light in scene
 			for UID, light_state in scene.items():
 				if UID == light.UID():
+					if light.save_state()['on']:
+						light._recall_state(light_state, transition=transition)
 					light.update_state(light_state)
+
 		
 		logger.info('Recalled scene: ' + scene_name)
 		
