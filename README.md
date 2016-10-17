@@ -37,7 +37,7 @@ On Linux the `hcitools` command `lescan` is used to start scanning for bluetooth
 Start the scanner by calling the method `scan_forever()`.  This method is blocking, so should typically be run in a separate thread.
 
 ###class ibeacon.PresenceSensor(*first\_one\_in\_callback=None, last\_one\_out\_callback=None, IP='localhost', port='1883', scan\_timeout=300*)
-The PresenceSensor subscribes to the `ibeacon/adverts` topic to receive ibeacon advertisements from the Scanner object via an MQTT message broker.  The IP address and port for the broker may be supplied as arguments, or default to the localhost on port 1883.
+The PresenceSensor subscribes to the `ibeacon/adverts` topic to receive ibeacon advertisements from the Scanner object via an MQTT message broker.  The IP address and port for the broker may be supplied as arguments, or default to port 1883 on the localhost.
 
 The `PresenceSensor` class provides a simple API to query whether members of the household are currently in or out, based on whether advertisement packets have recently been received from registered iBeacons associated with each member of the household.  The `query(beacon_owner)` method returns `True` if `beacon_owner` is in, or `False` if the iBeacon registered to them has not been detected for longer than the specified timeout.  The `query()` may also be called without any arguments.  In this case, it returns `True` if any of the registered members of the household are present, or `False` if no-one is home.
 
