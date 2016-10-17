@@ -33,7 +33,7 @@ class DaylightSensor():
 
 		# initialise sunrise & sunset times
 		now = datetime.datetime.now()
-		self.daylight_times = self._get_daylight_times(now)
+		self.daylight_times = self._get_daylight_times(date=now)
 
 	def query(self, time=None):
 		"""
@@ -45,7 +45,7 @@ class DaylightSensor():
 		
 		# update daylight times if >24 hours old
 		if time > self.update_daylight_due:
-			self.daylight_times = self._get_daylight_times(time)
+			self.daylight_times = self._get_daylight_times(date=time)
 		
 		# ensure daylight times are same day as query time		
 		sunrise = self.daylight_times['sunrise'].replace(time.year, time.month, time.day)
@@ -63,9 +63,12 @@ class DaylightSensor():
 		"""
 		# update daylight times if >24 hours old
 		if datetime.datetime.utcnow() > self.update_daylight_due:
-			self.daylight_times = self._get_daylight_times(time)
+			self.daylight_times = self._get_daylight_times()
+		# ensure daylight times are today
+		today = datetime.datetime.today()	
+		sunrise = self.daylight_times['sunrise'].replace(today.year, today.month, today.day)
 		# return sunrise
-		return self.daylight_times['sunrise']
+		return sunrise
 
 	def sunset(self):
 		"""
@@ -73,14 +76,20 @@ class DaylightSensor():
 		"""
 		# update daylight times if >24 hours old
 		if datetime.datetime.utcnow() > self.update_daylight_due:
-			self.daylight_times = self._get_daylight_times(time)
+			self.daylight_times = self._get_daylight_times()
+		# ensure daylight times are today
+		today = datetime.datetime.today()	
+		sunset = self.daylight_times['sunset'].replace(today.year, today.month, today.day)
 		# return sunset
-		return self.daylight_times['sunset']
+		return sunset
 
-	def _get_daylight_times(self, date):
+	def _get_daylight_times(self, date=None):
 		"""
 		Return sunrise and sunset times from sunrise-sunset.org as datetime objects
 		"""
+		logger.debug('Updating sunrise and sunset times...')
+		if date is None:
+			date = datetime.datetime.utcnow()
 		payload = {'lat': self.lat, 'lng': self.lng, 'date': date.isoformat()}
 		try:
 			r = requests.get('http://api.sunrise-sunset.org/json', params=payload, timeout=30)
@@ -88,7 +97,7 @@ class DaylightSensor():
 			sunrise_str = r.json()['results']['sunrise']
 			sunset_str = r.json()['results']['sunset']
 		except (requests.exceptions.HTTPError, requests.exceptions.Timeout, requests.exceptions.ConnectionError) as err:
-			logger.warning("Failed to update daylight times! (%s)" % (err))
+			logger.warning("Could not connect to sunrise-sunset.org (%s)" % (err))
 			return self.daylight_times
 		sunrise = datetime.datetime.strptime(sunrise_str,'%I:%M:%S %p').replace(date.year, date.month, date.day)
 		sunset = datetime.datetime.strptime(sunset_str,'%I:%M:%S %p').replace(date.year, date.month, date.day)
@@ -215,8 +224,6 @@ class Controller():
 					# timer rules: set trigger time to rule time adjusted to UTC
 					trigger_time = rule['time'] + self.tz.utcoffset(rule['time'])
 
-				logger.debug('Trigger time: %s, time now: %s' % (trigger_time.strftime('%a %d/%m/%Y %H:%M:%S'), now.strftime('%a %d/%m/%Y %H:%M:%S')))
-
 				# trigger rule if trigger_time has passed since last loop
 				if (self.last_tick < trigger_time) and (now > trigger_time):
 					self._apply_action(rule)
@@ -239,21 +246,25 @@ class Controller():
 		Apply triggered action to lights defined in rule (or all lights if none given)
 		"""
 		try:
+			transition = rule['transition']
+		except KeyError:
+			transition = False
+		try:
 			logger.info('Triggered action %s at %s' % (rule, datetime.datetime.now().strftime('%a %d/%m/%Y %H:%M:%S')))
 			if rule['action'] == 'on':
 				if len(rule['lights']) == 0:
 					for light in self.bridge:
-						light.on()
+						light.on(transition=transition)
 				else:
 					for light in rule['lights']:
-						self.bridge.get(light).on()
+						self.bridge.get(light).on(transition=transition)
 			if rule['action'] == 'off':
 				if len(rule['lights']) == 0:
 					for light in self.bridge:
-						light.off()	
+						light.off(transition=transition)
 				else:
 					for light in rule['lights']:
-						self.bridge.get(light).off()
+						self.bridge.get(light).off(transition=transition)
 			if rule['action'] == 'scene':
 				self.bridge.recall_local_scene(rule['scene'])
 		except TypeError:
@@ -264,7 +275,7 @@ class Controller():
 			if not self.presence_sensor.query():
 				logger.info('There\'s no-one home; switching lights off')
 				for light in self.bridge:
-					light.off()
+					light.off(transition=transition)
 
 	def _update_times_to_today(self, today):
 		"""
@@ -332,7 +343,7 @@ class Bridge():
 					light = {'type':'Lightify', 'name':name, 'uid':obj.UID(), 'addr':obj.addr()}
 				lights_to_save.append(light)
 			with open(fname, 'w') as f:
-				json.dump(lights_to_save, f)
+				json.dump(lights_to_save, f, indent=4)
 			# delete old saved scenes (as the lights will have inconsistent UIDs)
 			try:
 				os.remove('saved_scenes.json')
@@ -433,7 +444,7 @@ class Bridge():
 			scene[light.UID()] = light.save_state()
 		self.__scenes[scene_name] = scene
 		with open('saved_scenes.json', 'w') as f:
-			json.dump(self.__scenes, f)
+			json.dump(self.__scenes, f, indent=4)
 		print('Saved scene: ' + scene_name)
 		
 	def recall_local_scene(self, scene_name):
@@ -488,27 +499,29 @@ class HueLight():
 		"""
 		return self.__name
 		
-	def on(self):
+	def on(self, transition=4):
 		"""
 		Switch the light on with previously saved settings
 		"""
+		if transition == False: transition = 4
 		logger.info('Switching light %s on with saved settings' % (self.name()))
-		self.recall_state(self.__state)
+		self._recall_state(self.__state, transition=transition)
 
-	def off(self):
+	def off(self, transition=4):
 		"""
 		Switches the light off
 		"""
-		self.__on_or_off('off')
+		if transition == False: transition = 4		
+		self._on_or_off('off', transition)
 		
-	def __on_or_off(self, operation):
+	def _on_or_off(self, operation, transition):
 		logger.info('Switching light %s %s' % (self.name(), operation))
 		url = 'http://'+HueLight.IP+'/api/'+HueLight.username+'/lights/'+self.__ID+'/state'
 		if operation == 'on':
-			payload = '{"on": true}'
+			payload = {"on": True, "transitiontime":transition}
 		else:
-			payload = '{"on": false}'
-		r = requests.put(url, data=payload)
+			payload = {"on": False, "transitiontime":transition}
+		r = requests.put(url, json=payload)
 		self._check_rc(r)
 			
 	def save_state(self):
@@ -525,7 +538,7 @@ class HueLight():
 		state = r.json()['state']
 		return state
 
-	def recall_state(self, state):
+	def _recall_state(self, state, transition=4):
 		"""
 		Switch light on with previously saved parameters (brightness, colour temperature/colour & on/off only)
 		"""
@@ -544,7 +557,7 @@ class HueLight():
 			# light doesn't support setting colour
 			color_command = ''
 
-		payload = {"on":True,"bri":state['bri']}
+		payload = {"on":True,"bri":state['bri'],"transitiontime":transition}
 		payload.update(color_command)
 		r = requests.put(url, json=payload)
 		self._check_rc(r)

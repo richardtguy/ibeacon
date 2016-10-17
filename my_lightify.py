@@ -86,19 +86,21 @@ class LightifyLight(Lightify):
 		"""
 		return self._addr
 
-	def on(self):
+	def on(self, transition=10):
 		"""
 		Switch the light on with previously saved settings
 		"""
+		if transition == False: transition = 10
 		logger.info('Switching light %s on' % (self._name))
-		self.recall_state(self._state)
+		self._recall_state(self._state, transition=transition)
 		
-	def off(self):
+	def off(self, transition=10):
 		"""
 		Switch the light off
 		"""
+		if transition == False: transition = 10
 		logger.info('Switching light %s off' % (self._name))		
-		self.set_bri(0)
+		self.set_bri(0, transition=transition)
 
 	def save_state(self):		
 		"""
@@ -118,14 +120,14 @@ class LightifyLight(Lightify):
 		logger.debug('state: %s' % (state))
 		return state
 	
-	def recall_state(self, state):
+	def _recall_state(self, state, transition=10):
 		"""
 		Switch on light to previously saved state
 		"""
 		logger.info('Recalling state: %s' % (state))
 		# recall saved brightness & colour temperature
-		self.set_bri(state['bri'])
-		self.set_temp(state['temp'])
+		self.set_bri(state['bri'], transition=transition)
+		self.set_temp(state['temp'], transition=transition)
 
 	def update_state(self, state):
 		"""
