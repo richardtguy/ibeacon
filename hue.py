@@ -1,11 +1,17 @@
-import requests, json, datetime, calendar, subprocess, signal, time, os, logging
+# Built-in modules
+import json, datetime, calendar, subprocess, signal, time, os, logging
+# Installed modules
+import paho.mqtt.client as mqtt
+import requests
+# Local modules
 import config, my_lightify, uid
 
-__version__ = '1.3.2'
+__version__ = '1.3.3'
 
 """
 Bridge and HueLight objects are not threadsafe, so use locks to ensure only one process
 can access these at a time (e.g. when iterating over the bridge).
+v1.3.3  Added remote control to apply actions via cloud MQTT
 v1.3.2	Refactored lightify classes and moved into my_lightify.py
 v1.3.1	Light states stored locally and recalled when light switched on
 v1.3.0	Changed to control Lightify Gateway via LAN instead of Cloud API (for lower latency)
@@ -175,13 +181,16 @@ class Controller():
 			self.presence_sensor = presence_sensor
 		else:
 			logger.error('Invalid PresenceMonitor object %s supplied to HueController %s' % (presence_sensor, self))
-					
+
 		self.last_tick_daylight = False
 		self.last_tick = datetime.datetime.utcnow()
 
 		# read rules from file
 		with open(rules, 'r') as f:
 			self.rules = json.loads(f.read())
+
+		# set up handler to parse and implement actions
+		self.action_handler = _ActionHandler(self.bridge)
 		
 		# change time strings in each rule to datetime objects
 		for rule in self.rules:
@@ -229,7 +238,7 @@ class Controller():
 					# if using presence sensor, only apply on/off actions if at home
 					if (self.presence_sensor != None):
 						if (self.presence_sensor.query()) or (rule['action'] == 'scene'):
-							self._apply_action(rule)
+							self.action_handler.apply_action(rule)
 		
 		self.last_tick = now
 
@@ -244,10 +253,78 @@ class Controller():
 		except KeyError:
 			return True
 	
-	def _apply_action(self, rule):
+	def _update_times_to_today(self, today):
 		"""
-		Apply triggered action to lights defined in rule (or all lights if none given)
+		Replace year, month, day with today's values, and adjust to UTC
 		"""
+		date = datetime.datetime.today()
+		for rule in self.rules:
+			if (rule['time'] != 'sunrise') and (rule['time'] != 'sunset'):
+				rule['time'] = rule['time'].replace(date.year, date.month, date.day)
+
+
+class Remote():
+	"""
+	Connect to and initiate actions from client apps via cloud MQTT message broker
+	"""
+	def __init__(self, host, port, uname, pword, bridge, topic='lights'):
+		# instance variables
+		self.host = host
+		self.port = port
+		self.topic = topic
+		self.bridge = bridge
+
+		# initialise MQTT client
+		self.mqttc = mqtt.Client()
+		self.mqttc.on_connect = self._on_connect
+		self.mqttc.on_disconnect = self._on_disconnect		
+		self.mqttc.on_message = self._message_handler
+		self.mqttc.username_pw_set(uname, password=pword)
+		
+		self.action_handler = _ActionHandler(self.bridge)
+
+	def start(self):
+		# connect to MQTT broker and listen (in new thread) for actions
+		logger.info("Starting Remote...")
+		self.mqttc.connect(self.host, port=self.port)
+		# start threaded network loop
+		self.mqttc.loop_start()
+				
+	def stop(self):
+		logger.info("Stopping Remote...")
+		# stop network loop
+		self.mqttc.loop_stop()
+		# disconnect client object from MQTT server
+		self.mqttc.disconnect()
+	
+	def _on_connect(self, client, userdata, flags, rc):
+		logger.info(("Presence Sensor connected to message broker with result code " + str(rc)))
+		# Subscribing in on_connect() means that if we lose the connection and
+		# reconnect then subscriptions will be renewed.
+		logger.info(('Subscribing to %s' % (self.topic)))
+		self.mqttc.subscribe(self.topic)
+		
+	def _on_disconnect(self, client, userdata, rc):
+		if rc != 0:
+			logger.warning('Unexpected disconnection! (%s)' % (rc))
+		logger.info('Presence Sensor disconnected from message broker')
+		
+	def _message_handler(self, client, userdata, message):
+		# parse action from message
+		msg = json.loads(message.payload.decode('utf-8'))
+		logger.debug('Message received from broker: %s' % (msg))
+		self.action_handler.apply_action(msg['action'])
+
+
+class _ActionHandler():
+	"""
+	Parse and implement actions on behalf of Controller or Remote objects.
+	Apply specified action to lights defined in rule (or all lights if none given)
+	"""
+	def __init__(self, bridge):
+		self.bridge = bridge
+		
+	def apply_action(self, rule):
 		try:
 			transition = rule['transition']
 		except KeyError:
@@ -272,15 +349,7 @@ class Controller():
 				self.bridge.recall_local_scene(rule['scene'])
 		except TypeError:
 			logger.error('Action failed %s' % (rule))
-
-	def _update_times_to_today(self, today):
-		"""
-		Replace year, month, day with today's values, and adjust to UTC
-		"""
-		date = datetime.datetime.today()
-		for rule in self.rules:
-			if (rule['time'] != 'sunrise') and (rule['time'] != 'sunset'):
-				rule['time'] = rule['time'].replace(date.year, date.month, date.day)
+	
 
 class Bridge():
 	"""

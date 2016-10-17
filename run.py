@@ -27,6 +27,7 @@ def run():
 		print('Exiting...', end='')
 		logger.info('Exiting...')		
 		presence_sensor.stop()
+		remote.stop()
 		scan_p.terminate()
 		flic_client.close()
 		flic_thread.join()
@@ -137,6 +138,12 @@ def run():
 	# initialise lights controller (triggers timed actions)
 	print('Starting light controller...', end='')
 	controller = hue.Controller(bridge, config.RULES, daylight_sensor, presence_sensor)
+	print(' OK')
+
+	# initialise remote controller
+	print('Starting remote controller...', end='')
+	remote = hue.Remote(config.MQTT_HOST, config.MQTT_PORT, config.MQTT_UNAME, config.MQTT_PWORD, bridge)
+	remote.start()
 	print(' OK')
 	
 	while True:
