@@ -359,7 +359,7 @@ class Bridge():
 	Implement a simplified API for a Philips Hue bridge and/or Osram Lightify Gateway.
 	Iterating over Bridge returns each HueLight or LightifyLight object
 	Documentation:
-		Lightify Cloud API - https://eu.lightify-api.org/
+		Lightify binary protocol - http://sarajarvi.org/lightify-haltuun/en.php
 		Philips Hue API - http://www.developers.meethue.com/philips-hue-api
 	"""
 	def __init__(self, hue_uname=None, hue_IP=None, lightify_IP=None):

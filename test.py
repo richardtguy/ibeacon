@@ -2,6 +2,7 @@
 
 import time
 import ibeacon, config, hue, logging, sys
+import soco
 
 # set up logging
 logger = logging.getLogger(__name__)
@@ -49,12 +50,36 @@ presence_sensor.stop()
 """
 
 # Test remote control
+"""
 bridge = None
 
 remote = hue.Remote(config.MQTT_HOST, config.MQTT_PORT, config.MQTT_UNAME, config.MQTT_PWORD, bridge)
 remote.start()
 time.sleep(60)
 remote.stop()
+"""
+
+# test discovery and control of Sonos speakers
+print('Connecting to Sonos speakers...', end='')
+speakers = soco.discover()
+if speakers != None:
+	for speaker in speakers:
+		logger.info('Discovered speaker: %s' % (speaker.player_name))
+	print(' OK')
+else:
+	print(' No speakers found')
+
+if speakers != None:
+	logger.info("Turning speakers off...")
+	for speaker in speakers:
+		speaker.play()
+
+time.sleep(5)
+
+if speakers != None:
+	logger.info("Turning speakers off...")
+	for speaker in speakers:
+		speaker.stop()
 
 
 

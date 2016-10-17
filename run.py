@@ -1,7 +1,9 @@
 #!/usr/bin/python3
 
 # import built-in modules
-import datetime, time, threading, signal, sys, random, subprocess, logging, json, requests
+import datetime, time, threading, signal, sys, random, subprocess, logging, json
+# import installed modules
+import requests, soco
 # import local modules
 import ibeacon, hue, config, fliclib, uid
 
@@ -58,6 +60,11 @@ def run():
 			logger.info("There's no-one home, turning lights off...")
 			for light in bridge:
 				light.off()
+		if speakers != None:
+			logger.info("Turning speakers off...")
+			for speaker in speakers:
+				speaker.stop()
+		
 	
 	# these functions are called by the Flic client when a button is pressed, a new button is found etc.
 	def click_handler(channel, click_type, was_queued, time_diff):
@@ -140,11 +147,21 @@ def run():
 	controller = hue.Controller(bridge, config.RULES, daylight_sensor, presence_sensor)
 	print(' OK')
 
-	# initialise remote controller
+	# initialise remote lights controller
 	print('Starting remote controller...', end='')
 	remote = hue.Remote(config.MQTT_HOST, config.MQTT_PORT, config.MQTT_UNAME, config.MQTT_PWORD, bridge)
 	remote.start()
 	print(' OK')
+	
+	# initialise Sonos speakers
+	print('Connecting to Sonos speakers...', end='')
+	speakers = soco.discover()
+	if speakers != None:
+		for speaker in speakers:
+			logger.info('Discovered speaker: %s' % (speaker.player_name))
+		print(' OK')
+	else:
+		print(' No speakers found')
 	
 	while True:
 		# tick controller to check if any actions should be triggered
