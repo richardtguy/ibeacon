@@ -8,7 +8,7 @@ This project implements a practical system to control the Philips Hue and Osram 
 - Timers: Switch lights on, off and recall scenes at set times of the day.
 - Daylight: Switch lights on, off and recall scenes at sunrise or sunset.
 
-I\'ve used Flic bluetooth buttons from Shortcut Labs.  Server and client Python libraries are available [here]([https://github.com/50ButtonsEach/fliclib-linux-hci](https://github.com/50ButtonsEach/fliclib-linux-hci).  Verified buttons communicate with the Raspberry Pi via a server application which passes click events to a client.  The client application switches lights on or off depending on the click type (single click or hold).  Buttons are associated with groups of lights as defined in a JSON formatted file `flic_button_groups.json`.
+I\'ve used Flic bluetooth buttons from Shortcut Labs.  Server and client Python libraries are available [here](https://github.com/50ButtonsEach/fliclib-linux-hci).  Verified buttons communicate with the Raspberry Pi via a server application which passes click events to a client.  The client application switches lights on or off depending on the click type (single click or hold).  Buttons are associated with groups of lights as defined in a JSON formatted file `flic_button_groups.json`.
 
 For the presence monitoring, I\'ve used a Raspberry Pi 3 with a Bluetooth LE USB dongle to listen for the advertisment packets from some [bluetooth beacon key fobs](https://www.beaconzone.co.uk/ibeacon/PC037-E), and so keep track of who's at home.  If it hasn't heard from either beacon after five minutes, it switches all the lights off.
 
