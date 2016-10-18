@@ -1,4 +1,5 @@
-import ibeacon, sys, argparse
+import sys, argparse
+from jubilee import ibeacon
 
 # parse command line argument for topic (--topic)
 parser = argparse.ArgumentParser()

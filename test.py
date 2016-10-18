@@ -1,7 +1,9 @@
 #!/usr/local/bin/python3
 
 import time
-import ibeacon, config, hue, logging, sys
+from jubilee import ibeacon, lights
+import sys, logging
+import config
 import soco
 
 # set up logging
@@ -17,7 +19,7 @@ logging.basicConfig(
 
 # Test bridge (Hue and Lightify)
 """
-bridge = hue.Bridge(hue_uname=config.HUE_USERNAME, hue_IP=config.HUE_IP_ADDRESS, lightify_IP=config.LIGHTIFY_IP)
+bridge = lights.Bridge(hue_uname=config.HUE_USERNAME, hue_IP=config.HUE_IP_ADDRESS, lightify_IP=config.LIGHTIFY_IP)
 
 for light in bridge:
 	light.off()
@@ -30,7 +32,6 @@ for light in bridge:
 
 
 # Test presence sensor
-"""
 def welcome_home(person):
 	print('welcome home %s' % (person))
 	
@@ -47,17 +48,16 @@ presence_sensor.start()
 time.sleep(10)
 
 presence_sensor.stop()
-"""
+
 
 # Test remote control
-"""
 bridge = None
 
-remote = hue.Remote(config.MQTT_HOST, config.MQTT_PORT, config.MQTT_UNAME, config.MQTT_PWORD, bridge)
+remote = lights.Remote(config.MQTT_HOST, config.MQTT_PORT, config.MQTT_UNAME, config.MQTT_PWORD, bridge)
 remote.start()
 time.sleep(60)
 remote.stop()
-"""
+
 
 # test discovery and control of Sonos speakers
 print('Connecting to Sonos speakers...', end='')

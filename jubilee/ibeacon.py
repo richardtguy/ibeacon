@@ -4,8 +4,8 @@ import time, datetime, json, threading, os, signal, sys, subprocess, logging
 # Installed modules
 import paho.mqtt.client as mqtt
 
-# Local modules
-import timeout
+# Package modules
+from . import timeout
 
 __version__ = '1.0.1+'
 

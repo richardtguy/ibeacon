@@ -5,7 +5,8 @@ import datetime, time, threading, signal, sys, random, subprocess, logging, json
 # import installed modules
 import requests, soco
 # import local modules
-import ibeacon, hue, config, fliclib, uid
+from jubilee import ibeacon, lights, uid
+import config, fliclib
 
 def run():
 	# set up logging
@@ -111,8 +112,8 @@ def run():
 	topic_ID = 'ibeacon/' + uid.get_UID(length=5)
 	scan_p = subprocess.Popen(['sudo', 'python', 'start_scanner.py', '--topic', topic_ID])
 	
-	# initialise Hue bridge
-	bridge = hue.Bridge(hue_uname=config.HUE_USERNAME, hue_IP=config.HUE_IP_ADDRESS, lightify_IP=config.LIGHTIFY_IP)
+	# initialise lights bridge
+	bridge = lights.Bridge(hue_uname=config.HUE_USERNAME, hue_IP=config.HUE_IP_ADDRESS, lightify_IP=config.LIGHTIFY_IP)
 	
 	# load flic button groups from file
 	with open('flic_button_groups.json') as f:
@@ -128,7 +129,7 @@ def run():
 	flic_thread.start()
 	
 	# initialise daylight sensor (daylight times from sunrise-sunset.org API)
-	daylight_sensor = hue.DaylightSensor(config.LATITUDE, config.LONGITUDE)
+	daylight_sensor = lights.DaylightSensor(config.LATITUDE, config.LONGITUDE)
 	print('Sunrise and sunset times... OK')
 	
 	# initialise presence sensor and register beacons
@@ -144,12 +145,13 @@ def run():
 
 	# initialise lights controller (triggers timed actions)
 	print('Starting light controller...', end='')
-	controller = hue.Controller(bridge, config.RULES, daylight_sensor, presence_sensor)
+	controller = lights.Controller(bridge, config.RULES, daylight_sensor, presence_sensor)
 	print(' OK')
 
 	# initialise remote lights controller
 	print('Starting remote controller...', end='')
-	remote = hue.Remote(config.MQTT_HOST, config.MQTT_PORT, config.MQTT_UNAME, config.MQTT_PWORD, bridge)
+	remote = lights.Remote(config.MQTT_HOST, config.MQTT_PORT, config.MQTT_UNAME, config.MQTT_PWORD, bridge)
+	remote.threadsafe(lock)
 	remote.start()
 	print(' OK')
 	
@@ -164,9 +166,9 @@ def run():
 		print(' No speakers found')
 	
 	while True:
-		# tick controller to check if any actions should be triggered
+		# loop controller to check if any actions should be triggered
 		# use lock to ensure that any actions triggered are resolved before the Controller
-		# releases control to the PresenceSensor (or other child threads)
+		# releases control to the PresenceSensor, Flic buttons, or other child threads
 		with lock: controller.loop_once()
 		time.sleep(1)
 
