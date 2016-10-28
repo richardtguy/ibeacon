@@ -21,10 +21,7 @@ def run():
 	
 	print("Starting light controller, press [Ctrl+C] to exit.")
 	logger.info("Starting light controller...")
-	
-	# interlock to ensure that only one thread can access shared resources at a time
-	lock = threading.Lock()
-	
+		
 	# signal handler to exit gracefully on Ctrl+C
 	def exit_handler(signal, frame):
 		print('Exiting...', end='')
@@ -43,27 +40,19 @@ def run():
 	welcome_lights = ['Hall 1', 'Hall 2', 'Dining table', 'Kitchen cupboard']
 	
 	# these functions are called by the PresenceSensor on last-one-out or first-one-in events
-	# if using PresenceSensor.start() to loop in a child thread, these will be called from a
-	# child process, so should be protected by a lock to prevent simultaneous access to the
-	# Bridge and HueLight objects with the HueController on the main thread.
 	def welcome_home(beacon_owner):
-		with lock:
-			logger.info('Welcome home %s!' % (beacon_owner))
-			if daylight_sensor.query():
-				for light in welcome_lights:
-					bridge.get(light).on()
-			else:
-				for light in bridge:
-					light.on()
+		logger.info('Welcome home %s!' % (beacon_owner))
+		if daylight_sensor.query():
+			bridge.light_on(welcome_lights)
+		else:
+			bridge.light_on([])
 	
 	def bye():
-		with lock:
-			logger.info("There's no-one home, turning lights off...")
-			for light in bridge:
-				light.off()
-		if speakers != None:
+		logger.info("There's no-one home, turning lights off...")
+		bridge.light_off([])
+		if sonos != None:
 			logger.info("Turning speakers off...")
-			for speaker in speakers:
+			for speaker in sonos:
 				speaker.stop()
 		
 	
@@ -71,19 +60,17 @@ def run():
 	def click_handler(channel, click_type, was_queued, time_diff):
 		logger.info(channel.bd_addr + " " + str(click_type))
 		if str(click_type) == 'ClickType.ButtonSingleClick':
-			with lock:
+			if channel.bd_addr in groups.keys():
 				logger.info("Switching on lights associated with button " + channel.bd_addr)
-				for light in groups[channel.bd_addr]['group']:
-					try:
-						bridge.get(light).on()
-					except KeyError:
-						logger.info("Light not found for button " + str(channel.bd_addr))									
+				bridge.light_on(groups[channel.bd_addr]['group'])
+			else:
+				logger.debug('%s Button not registered with any lights' % (channel.bd_addr))				
 		elif str(click_type) == 'ClickType.ButtonHold':
 			# turn off all lights
-			with lock:
-				logger.info("Turning off all lights...")
-				for light in bridge:
-					light.off()
+			logger.info("Turning off all lights...")
+			bridge.light_off([])
+			for speaker in sonos:
+				speaker.stop()
 		elif str(click_type) == 'ClickType.ButtonDoubleClick':
 			# not used
 			pass
@@ -151,15 +138,14 @@ def run():
 	# initialise remote lights controller
 	print('Starting remote controller...', end='')
 	remote = lights.Remote(config.MQTT_HOST, config.MQTT_PORT, config.MQTT_UNAME, config.MQTT_PWORD, bridge)
-	remote.threadsafe(lock)
 	remote.start()
 	print(' OK')
 	
 	# initialise Sonos speakers
 	print('Connecting to Sonos speakers...', end='')
-	speakers = soco.discover()
-	if speakers != None:
-		for speaker in speakers:
+	sonos = soco.discover()
+	if sonos != None:
+		for speaker in sonos:
 			logger.info('Discovered speaker: %s' % (speaker.player_name))
 		print(' OK')
 	else:
@@ -167,9 +153,7 @@ def run():
 	
 	while True:
 		# loop controller to check if any actions should be triggered
-		# use lock to ensure that any actions triggered are resolved before the Controller
-		# releases control to the PresenceSensor, Flic buttons, or other child threads
-		with lock: controller.loop_once()
+		controller.loop_once()
 		time.sleep(1)
 
 if __name__ == "__main__":

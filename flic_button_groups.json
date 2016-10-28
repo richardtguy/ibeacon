@@ -24,5 +24,11 @@
             "P16TW 05",
             "P16TW 06"			
 		]
+    },
+    "80:e4:da:71:70:2f": {
+		"group": [
+            "1st Floor Hall 1",
+            "1st Floor Hall 2"
+		]
     }
 }

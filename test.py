@@ -16,22 +16,35 @@ logging.basicConfig(
 	datefmt='%d/%m/%y, %H:%M:%S'
 )
 
-
-# Test bridge (Hue and Lightify)
 """
+# Test bridge (Hue and Lightify)
+print('Testing connection to Hue and Lightify lights')
+
 bridge = lights.Bridge(hue_uname=config.HUE_USERNAME, hue_IP=config.HUE_IP_ADDRESS, lightify_IP=config.LIGHTIFY_IP)
 
-for light in bridge:
-	light.off()
-	
+print('Turning Dining table off using light_off(name)...')
+bridge.light_off('Dining table')
+time.sleep(5)
+bridge.light_on('Dining table')
 time.sleep(2)
 
-for light in bridge:
-	light.on()
+print('Turning lights off using light_off(name)...')
+bridge.light_off([])
+time.sleep(5)
+bridge.light_on([])
+time.sleep(2)
+
+print('Recalling scenes...')
+bridge.recall_local_scene('morning', transition=50)
+time.sleep(2)
+bridge.recall_local_scene('evening')
+time.sleep(2)
 """
+
 
 
 # Test presence sensor
+print('Testing presence sensor')
 def welcome_home(person):
 	print('welcome home %s' % (person))
 	
@@ -49,18 +62,18 @@ time.sleep(10)
 
 presence_sensor.stop()
 
-
+"""
 # Test remote control
-bridge = None
-
+print('Testing remote control')
 remote = lights.Remote(config.MQTT_HOST, config.MQTT_PORT, config.MQTT_UNAME, config.MQTT_PWORD, bridge)
 remote.start()
+print('Waiting for remote command...')
 time.sleep(60)
 remote.stop()
-
-
+"""
+"""
 # test discovery and control of Sonos speakers
-print('Connecting to Sonos speakers...', end='')
+print('Testing connecting to Sonos speakers...', end='')
 speakers = soco.discover()
 if speakers != None:
 	for speaker in speakers:
@@ -80,6 +93,6 @@ if speakers != None:
 	logger.info("Turning speakers off...")
 	for speaker in speakers:
 		speaker.stop()
-
+"""
 
 
