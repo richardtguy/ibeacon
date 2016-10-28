@@ -23,12 +23,11 @@ The project is implemented using Python 3 (and a shell script adapted from one I
 
 - Start Flic button server: `sudo ./flicd -f flic.sqlite3`
 
-- An example implementation, including use of daylight and timer rules, Flic buttons, a presence sensor, and remote control, is included in `run.py`.  Run this in a new terminal.
-`$ sudo python run.py`
+- An example implementation, including use of daylight and timer rules, Flic buttons, a presence sensor, and remote control, is included in `run.py`.  Run this in a new terminal: `$ sudo python ./run.py`
 
 Note that, depending on which features you're using, various configuration parameters are required.  In the example, these are supplied in a configuration file, `config.py`.
 
-##Documentation
+##Sensors
 
 ###class jubilee.ibeacon.Scanner(*IP='localhost', port='1883', hci='hci0'*)
 On Linux the `hcitools` command `lescan` is used to start scanning for bluetooth packets (using the `--duplicates` option to catch repeated advertisements from the same beacons).  The script then runs `hcidump --raw`, and pipes the output through a bash script that parses the raw stream into ibeacon advertisements in JSON format.  The scanner publishes the adverts to an MQTT message broker on the topic `ibeacon/adverts`.  The IP address and port of the broker, which may be supplied as arguments, default to `localhost:1883`.  An experimental binary is provided on OSX to scan and parse the packets into the same format, but response times are currently much slower than on Linux. 
@@ -58,8 +57,8 @@ The DaylightSensor class provides a simple API to query whether a time supplied 
 ####jubilee.lights.DaylightSensor.query(*time*)
 The argument `time` should be supplied as a `datetime` object in UTC (defaults to now if omitted).  If it has been more than 24 hours since daylight times were last refreshed from [sunrise-sunset.org](http://www.sunrise-sunset.org), these are refreshed.  Then returns `True` if the date supplied as an argument is during daylight hours, `False` otherwise.
 
-
-Bridge, Controller and Remote classes are implemented to provide a simplified interface to the Philips Hue and Osram Lightify lamps.  Colour, brightness and other settings are saved locally as scenes and pushed to each lamp by calling its `on()` method.  HueLight and LightifyLight objects handle the detailed implementation of the two protocols, and provide a common API.
+##Lights
+Bridge, Controller and Remote classes are implemented to provide a simplified interface to the Philips Hue and Osram Lightify lamps.  Colour, brightness and other settings are saved locally as scenes and pushed to each lamp by calling its `on()` method.  HueLight and LightifyLight objects handle the detailed implementation of the two protocols, and provide a common API.  To ensure thread safety, use the API to the Bridge class rather than calling methods on the HueLight and LightifyLight objects directly.
 
 ###class jubilee.lights.HueLight(*name, ID, UID=None*)
 The HueLight class represents a single lamp connected to the bridge and handles details of the HTTP REST API used to communicate with the Hue Bridge.
@@ -72,31 +71,27 @@ Switches the lamp on to the most recently saved settings for colour and brightne
 ####jubilee.lights.HueLight.off(*transition=4*)
 Switches the lamp off.
 
-####jubilee.lights.HueLight.dim()
-Switches the lamp on and adjusts the brightness to a minimum setting.
-
 ####jubilee.lights.HueLight.save\_state()
 Gets the current colour, brightness and other settings for the lamp from the bridge and saves to the instance variable self.\_\_state.
 
 ####jubilee.lights.HueLight.update\_state(*state*)
-Saves the state object supplied as an argument to the instance variable self.\_\_state.  May be used to e.g. set the lamp settings when recalling a scene.  The syntax for the state object is manufacturer-dependent, so it is best always to retrieve this by calling Huelight.save\_state() with the lamp already set to the desired settings.
+Saves the state object supplied as an argument to the instance variable self.\_\_state.  May be used to e.g. set the lamp settings when recalling a scene.  The syntax for the state object is manufacturer-dependent, so it is best always to retrieve this by calling Huelight.save\_state() with the lamp already set to the desired settings using another application.
 
 ###class jubilee.lightify.LightifyLight(*addr, host, name=None, port=4000, uid=None*)
-The my\_lightify.LightifyLight class has an identical API, and handles details of the proprietary binary protocol used to communicate with the Gateway.
+The my\_lightify.LightifyLight class has an identical API, and handles details of the proprietary binary protocol used to communicate with the Lightify Gateway.
 
 ###class jubilee.lights.Bridge(*username, IP*)
 Implements a simplified API for controlling lights connected to a Hue bridge and/or Osram Lightify Gateway.  The constructor loads details of saved lights from a file `saved_lights.json` or, if this file is not present, queries the bridge and/or gateway to obtain a new list of connected lights.  These are stored in a dictionary `self.lights`, with light names as keys and corresponding HueLight or LightifyLight objects as values.
 
 For the Philips Hue Bridge, a whitelisted username on the bridge, and the IP address of the bridge must be supplied as arguments.  For the Osram Lightify Gateway, the IP address of the gateway must be supplied.  Both must be connected to the local network.
 
-Various methods are available to interact with the bridge and connected lights.  Lights can be accessed individually by name in Bridge.lights, or collectively by iterating over the bridge.  E.g. to switch off all lights connected to the bridge, simply use:
-```python
-for light in bridge:
-	light.off()
-```
+Various methods are available to interact with the bridge and connected lights.  To ensure thread safety, switch lights on or off by calling the Bridge class methods light_on() or light_off() with the appropriate arguments.  E.g. to switch off all lights connected to the bridge, call `light_off([])`.
 
-####jubilee.lights.Bridge.get(*light\_name*)
-Returns the HueLight object with the corresponding name `light_name`.  The light can then e.g. be switched on using `HueBridge.get(light_name).on()`.
+####jubilee.lights.Bridge.light_on(*light, transition=4*)
+Switches on a specified light or lights with the current saved settings for those lights.  To switch on a single light, call the method with the name of the light as the first argument.  To switch on more than one light, the first argument should be a list of light names.  To specify that all lights should be switched on, use an empty list.
+
+####jubilee.lights.Bridge.light_off(*light, transition=4*)
+Switches off a specified light or lights, using the same arguments as for `light_on()`.
 
 ####jubilee.lights.Bridge.recall\_local\_scene(*scene_name, transition=4*)
 Recalls a scene stored in a local file, `saved_scenes.json`.  Note that the scene is applied to all lamps connected to the bridge.  The new settings are pushed to any lights that are currently on.
