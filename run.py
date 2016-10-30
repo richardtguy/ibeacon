@@ -11,7 +11,10 @@ import config, fliclib
 def run():
 	# set up logging
 	logger = logging.getLogger(__name__)
-	logging_level = sys.argv[1].upper()
+	try:
+		logging_level = sys.argv[1].upper()
+	except NameError:
+		logging_level = 'INFO'		
 	logging.basicConfig(
 		filename=config.LOG_FILENAME,
 		level=logging_level,
@@ -94,11 +97,6 @@ def run():
 			print(bd_addr, end=' ...')
 			got_button(bd_addr)
 	
-	# start ibeacon scanner in subprocess (To-do: wait until scanner is connected before proceeding)
-	# generate practically unique message topic for pub/sub ibeacon advertisements
-	topic_ID = 'ibeacon/' + uid.get_UID(length=5)
-	scan_p = subprocess.Popen(['sudo', 'python', 'start_scanner.py', '--topic', topic_ID])
-	
 	# initialise lights bridge
 	bridge = lights.Bridge(hue_uname=config.HUE_USERNAME, hue_IP=config.HUE_IP_ADDRESS, lightify_IP=config.LIGHTIFY_IP)
 	
@@ -116,13 +114,13 @@ def run():
 	flic_thread.start()
 	
 	# initialise daylight sensor (daylight times from sunrise-sunset.org API)
-	daylight_sensor = lights.DaylightSensor(config.LATITUDE, config.LONGITUDE)
+	daylight_sensor = lights.DaylightSensor(lat=config.LATITUDE, lon=config.LONGITUDE)
 	print('Sunrise and sunset times... OK')
 	
 	# initialise presence sensor and register beacons
 	print('Starting presence sensor...', end='')
 	logger.info('Starting presence sensor...')
-	presence_sensor = ibeacon.PresenceSensor(welcome_callback=welcome_home, last_one_out_callback=bye, topic=topic_ID, scan_timeout=config.SCAN_TIMEOUT)
+	presence_sensor = ibeacon.PresenceSensor(welcome_callback=welcome_home, last_one_out_callback=bye)
 	beacon1 = {"UUID": "FDA50693-A4E2-4FB1-AFCF-C6EB07647825", "Major": "10004", "Minor": "54480"}
 	beacon2 = {"UUID": "FDA50693-A4E2-4FB1-AFCF-C6EB07647825", "Major": "10004", "Minor": "54481"}
 	logger.info((presence_sensor.register_beacon(beacon1, "Richard")))
