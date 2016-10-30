@@ -1,35 +1,72 @@
 [
 	{
 		"trigger": "timer",
-		"action": "off",
-		"transition": 600,
-		"time": "19:28",
-		"lights": []
-	},
-	{
-		"trigger": "timer",
 		"action": "scene",
-		"time": "19:29",
+		"time": "01:00",
 		"scene": "morning"
 	},	
 	{
 		"trigger": "timer",
 		"action": "on",
 		"transition": 300,
-		"time": "19:30",
-		"lights": ["1st Floor Hall 1","1st Floor Hall 2", "Living Room Floor"],
+		"time": "06:00",
+		"lights": ["1st Floor Hall 1","1st Floor Hall 2", "Hall 1","Hall 2","Dining table", "Kitchen cupboard", "P16TW 01", "P16TW 02", "P16TW 03", "P16TW 04", "P16TW 05", "P16TW 06"],
 		"days": "11111--"
-	},
-	{
-		"trigger": "timer",
-		"action": "scene",
-		"time": "19:31",
-		"scene": "evening"
-	},
+	},				
 	{
 		"trigger": "timer",
 		"action": "on",
-		"time": "19:32",
+		"transition": 300,
+		"time": "07:30",
+		"lights": ["1st Floor Hall 1","1st Floor Hall 2", "Hall 1","Hall 2","Dining table", "Kitchen cupboard", "P16TW 01", "P16TW 02", "P16TW 03", "P16TW 04", "P16TW 05", "P16TW 06"],
+		"days": "-----11"
+	},
+	{
+		"trigger": "daylight",
+		"action": "scene",
+		"time": "sunrise",
+		"scene": "daytime"
+	},
+	{
+		"trigger": "daylight",
+		"action": "on",
+		"transition": 300,
+		"time": "sunrise",
+		"lights": ["Hall 1","Hall 2","Dining table", "Kitchen cupboard"]
+	},		
+	{
+		"trigger": "daylight",
+		"action": "off",
+		"transition": 3000,
+		"time": "sunrise",
+		"lights": ["1st Floor Hall 1","1st Floor Hall 2", "P16TW 01", "P16TW 02", "P16TW 03", "P16TW 04", "P16TW 05", "P16TW 06"]
+	},		
+	{
+		"trigger": "daylight",
+		"action": "on",
+		"transition": 6000,
+		"time": "sunset",
+		"offset": -20,
+		"lights": ["1st Floor Hall 1","1st Floor Hall 2","Lounge floor lamp","Lounge table lamp","P16TW 01", "P16TW 02", "P16TW 03", "P16TW 04", "P16TW 05", "P16TW 06"]
+	},
+	{
+		"trigger": "daylight",
+		"action": "scene",
+		"time": "sunset",
+		"scene": "evening"
+	},
+	{
+		"trigger": "daylight",
+		"action": "on",
+		"transition": 300,
+		"time": "sunset",
 		"lights": []
-	}
+	},	
+	{
+		"trigger": "timer",
+		"action": "off",
+		"transition": 600,
+		"time": "23:00",
+		"lights": []
+	}	
 ]

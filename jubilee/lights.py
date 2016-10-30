@@ -29,18 +29,27 @@ logger = logging.getLogger(__name__)
 class DaylightSensor():
 	"""
 	Implement a daylight sensor
+	Sunrise and sunset times are retrieved for the specified location (lat/lon)
+	If no location is supplied, attempts to find location from IP address using ipinfo.org
 	query() method returns true if daylight, false if not
 	"""
 	
-	def __init__(self, lat, lng):
+	def __init__(self, lat=None, lon=None):
 		"""
 		Initialise sensor
 		"""		
-		self.update_daylight_due = datetime.datetime.now() + datetime.timedelta(hours=24)
-		self.lat = lat
-		self.lng = lng
+		if (lat != None and lon != None):
+			self.lat = lat
+			self.lng = lon
+		else:
+			ipinfo = requests.get('https://ipinfo.io/geo').json()
+			self.lat = ipinfo["loc"].split(',')[0]
+			self.lng = ipinfo["loc"].split(',')[1]
+		
+		logger.debug('Daylight sensor initialised for latitude: %s, longitude: %s' % (self.lat, self.lng))
 
 		# initialise sunrise & sunset times
+		self.update_daylight_due = datetime.datetime.now() + datetime.timedelta(hours=24)
 		now = datetime.datetime.now()
 		self.daylight_times = self._get_daylight_times(date=now)
 
