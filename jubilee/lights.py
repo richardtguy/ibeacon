@@ -9,6 +9,9 @@ import requests
 # Package modules
 from . import uid as uid_module
 
+# Import config
+import config
+
 __version__ = '1.4.0'
 
 """
@@ -392,7 +395,7 @@ class Bridge():
 		self.lights = {}
 
 		# read list of connected lights from file if available, or connect to bridge and gateway to rebuild list
-		fname = 'saved_lights.json'
+		fname = config.SAVED_LIGHTS
 		try:
 			# read list of lights from file and write to self.lights
 			with open(fname, 'r') as f:
@@ -423,7 +426,7 @@ class Bridge():
 				json.dump(lights_to_save, f, indent=4)
 			# delete old saved scenes (as the lights will have inconsistent UIDs)
 			try:
-				os.remove('saved_scenes.json')
+				os.remove(config.SAVED_SCENES)
 			except OSError:
 				pass
 		
@@ -444,7 +447,7 @@ class Bridge():
 		# read saved scenes from file
 		print('Loading saved scenes... ', end='')
 		try:
-			with open('saved_scenes.json', 'r') as f:
+			with open(config.SAVED_SCENES, 'r') as f:
 				self.__scenes = json.load(f)
 			print('OK')
 		except IOError:
@@ -498,7 +501,7 @@ class Bridge():
 		for light in self.lights.values():
 			scene[light.UID()] = light.save_state()
 		self.__scenes[scene_name] = scene
-		with open('saved_scenes.json', 'w') as f:
+		with open(config.SAVED_SCENES, 'w') as f:
 			json.dump(self.__scenes, f, indent=4)
 		print('Saved scene: ' + scene_name)
 	

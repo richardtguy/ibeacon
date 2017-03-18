@@ -1,1 +1,98 @@
-[{"uid": "0jsqhxg2", "type": "Hue", "name": "1st Floor Hall 2", "id": "10"}, {"uid": "f5dh0dqo", "type": "Hue", "name": "1st Floor Hall 1", "id": "9"}, {"uid": "eiqjstg7", "type": "Hue", "name": "Dining table", "id": "4"}, {"uid": "1h9df2h2", "type": "Hue", "name": "Lounge floor lamp", "id": "7"}, {"uid": "6es32v1t", "type": "Hue", "name": "Kitchen cupboard", "id": "11"}, {"uid": "pg6ofy8w", "type": "Hue", "name": "Hall 2", "id": "6"}, {"uid": "fd1fkecc", "type": "Hue", "name": "Hall 1", "id": "5"}, {"addr": 9518399593889503291, "type": "Lightify", "name": "P16TW 03", "uid": "ksa8r2b5"}, {"addr": 9518399593889490791, "type": "Lightify", "name": "P16TW 02", "uid": "5d499ygj"}, {"uid": "gi3nx8w6", "type": "Hue", "name": "Lounge table lamp", "id": "8"}, {"addr": 9518399593889488910, "type": "Lightify", "name": "P16TW 01", "uid": "f9j4dl0z"}, {"addr": 9518399593889502584, "type": "Lightify", "name": "P16TW 06", "uid": "xic9y6wg"}, {"addr": 9518399593889490827, "type": "Lightify", "name": "P16TW 04", "uid": "z9qum6cc"}, {"addr": 9518399593889502556, "type": "Lightify", "name": "P16TW 05", "uid": "xj4m6qyi"}]
+[
+    {
+        "id": "7",
+        "uid": "n1aiuft4",
+        "name": "Lounge floor lamp",
+        "type": "Hue"
+    },
+    {
+        "uid": "b4b9wlux",
+        "name": "P16TW 04",
+        "type": "Lightify",
+        "addr": 9518399593889490827
+    },
+    {
+        "uid": "503q6crq",
+        "name": "P16TW 05",
+        "type": "Lightify",
+        "addr": 9518399593889502556
+    },
+    {
+        "id": "11",
+        "uid": "55smsr8i",
+        "name": "Kitchen cupboard",
+        "type": "Hue"
+    },
+    {
+        "id": "8",
+        "uid": "tn54l4t0",
+        "name": "Lounge table lamp",
+        "type": "Hue"
+    },
+    {
+        "uid": "1w8tj1pb",
+        "name": "P16TW 01",
+        "type": "Lightify",
+        "addr": 9518399593889488910
+    },
+    {
+        "id": "19",
+        "uid": "hci8es9y",
+        "name": "Anglepoise",
+        "type": "Hue"
+    },
+    {
+        "uid": "7loy2e51",
+        "name": "P16TW 03",
+        "type": "Lightify",
+        "addr": 9518399593889503291
+    },
+    {
+        "id": "5",
+        "uid": "dh4qskcy",
+        "name": "Hall 1",
+        "type": "Hue"
+    },
+    {
+        "id": "4",
+        "uid": "scoki9fp",
+        "name": "Dining table",
+        "type": "Hue"
+    },
+    {
+        "id": "6",
+        "uid": "tfsv6vvg",
+        "name": "Hall 2",
+        "type": "Hue"
+    },
+    {
+        "id": "10",
+        "uid": "71qe8j4b",
+        "name": "1st Floor Hall 2",
+        "type": "Hue"
+    },
+    {
+        "id": "20",
+        "uid": "ibbclunu",
+        "name": "Hue bloom 1",
+        "type": "Hue"
+    },
+    {
+        "uid": "9xzmquvv",
+        "name": "P16TW 02",
+        "type": "Lightify",
+        "addr": 9518399593889490791
+    },
+    {
+        "id": "9",
+        "uid": "4b15z2f7",
+        "name": "1st Floor Hall 1",
+        "type": "Hue"
+    },
+    {
+        "uid": "e759f583",
+        "name": "P16TW 06",
+        "type": "Lightify",
+        "addr": 9518399593889502584
+    }
+]

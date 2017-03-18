@@ -3,9 +3,9 @@
 # import built-in modules
 import datetime, time, threading, signal, sys, random, subprocess, logging, json
 # import installed modules
-import requests, soco
+import requests
 # import local modules
-from jubilee import ibeacon, lights, uid
+from jubilee import presence, lights, uid
 import config, fliclib
 
 def run():
@@ -13,8 +13,8 @@ def run():
 	logger = logging.getLogger(__name__)
 	try:
 		logging_level = sys.argv[1].upper()
-	except NameError:
-		logging_level = 'INFO'		
+	except IndexError:
+		logging_level = 'INFO'
 	logging.basicConfig(
 		filename=config.LOG_FILENAME,
 		level=logging_level,
@@ -30,8 +30,6 @@ def run():
 		print('Exiting...', end='')
 		logger.info('Exiting...')		
 		presence_sensor.stop()
-		remote.stop()
-		scan_p.terminate()
 		flic_client.close()
 		flic_thread.join()
 		print(' OK')
@@ -52,12 +50,7 @@ def run():
 	
 	def bye():
 		logger.info("There's no-one home, turning lights off...")
-		bridge.light_off([])
-		if sonos != None:
-			logger.info("Turning speakers off...")
-			for speaker in sonos:
-				speaker.stop()
-		
+		bridge.light_off([])		
 	
 	# these functions are called by the Flic client when a button is pressed, a new button is found etc.
 	def click_handler(channel, click_type, was_queued, time_diff):
@@ -72,8 +65,6 @@ def run():
 			# turn off all lights
 			logger.info("Turning off all lights...")
 			bridge.light_off([])
-			for speaker in sonos:
-				speaker.stop()
 		elif str(click_type) == 'ClickType.ButtonDoubleClick':
 			# not used
 			pass
@@ -101,7 +92,7 @@ def run():
 	bridge = lights.Bridge(hue_uname=config.HUE_USERNAME, hue_IP=config.HUE_IP_ADDRESS, lightify_IP=config.LIGHTIFY_IP)
 	
 	# load flic button groups from file
-	with open('flic_button_groups.json') as f:
+	with open(config.FLIC_BUTTONS) as f:
 		json_data = f.read()
 	groups = json.loads(json_data)
 	
@@ -120,7 +111,7 @@ def run():
 	# initialise presence sensor and register beacons
 	print('Starting presence sensor...', end='')
 	logger.info('Starting presence sensor...')
-	presence_sensor = ibeacon.PresenceSensor(welcome_callback=welcome_home, last_one_out_callback=bye)
+	presence_sensor = presence.PresenceSensor(welcome_callback=welcome_home, last_one_out_callback=bye)
 	beacon1 = {"UUID": "FDA50693-A4E2-4FB1-AFCF-C6EB07647825", "Major": "10004", "Minor": "54480"}
 	beacon2 = {"UUID": "FDA50693-A4E2-4FB1-AFCF-C6EB07647825", "Major": "10004", "Minor": "54481"}
 	logger.info((presence_sensor.register_beacon(beacon1, "Richard")))
@@ -133,22 +124,6 @@ def run():
 	controller = lights.Controller(bridge, config.RULES, daylight_sensor, presence_sensor)
 	print(' OK')
 
-	# initialise remote lights controller
-	print('Starting remote controller...', end='')
-	remote = lights.Remote(config.MQTT_HOST, config.MQTT_PORT, config.MQTT_UNAME, config.MQTT_PWORD, bridge)
-	remote.start()
-	print(' OK')
-	
-	# initialise Sonos speakers
-	print('Connecting to Sonos speakers...', end='')
-	sonos = soco.discover()
-	if sonos != None:
-		for speaker in sonos:
-			logger.info('Discovered speaker: %s' % (speaker.player_name))
-		print(' OK')
-	else:
-		print(' No speakers found')
-	
 	while True:
 		# loop controller to check if any actions should be triggered
 		controller.loop_once()

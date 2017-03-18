@@ -1,159 +1,203 @@
-# Built-in modules
-import time
-import datetime
-import json
-import threading
-import os
-import signal
+#!/usr/local/bin/python3
+
+import socket
 import sys
+import time
 import subprocess
+import threading
 import logging
-
-# Installed modules
-import paho.mqtt.client as mqtt
-
-# Package modules
-from . import timeout
-
-__version__ = '1.2.0'
-
-logger = logging.getLogger(__name__)
+import struct
+import json
+import os
 
 DEVNULL = open(os.devnull, 'wb')	# /dev/null
 PLATFORM = os.uname()[0]
 
-class PresenceSensor():
+# set up logging
+logger = logging.getLogger(__name__)
+
+class Scanner():
 	"""
-	Implement a sensor to monitor if house is occupied using iBeacon key fobs
-	- An instance of Scanner object must be started with scan_forever() first to publish 
-	  ibeacon advertisement packlets to MQTT message broker.
-	- PresenceSensor then subscribes
-	  to the topic ibeacon/adverts and keeps track of which beacons have been detected 
-	  recently.
-	- Callback functions may be set for last-one-out and welcome events.
-	- PresenceSensor.query(beacon_owner) method returns True if beacon registered to
-	  beacon_owner is found, False otherwise
+	Listen for ibeacon advertisements and send them to each client
 	"""
-	# define required iBeacon ID keys
-	BEACON_ID_KEYS = ("UUID", "Major", "Minor")
-	
-	def __init__(self, welcome_callback=None, last_one_out_callback=None, hci='hci0', scan_timeout=datetime.timedelta(seconds=300)):
+	def __init__(self, hci='hci0'):
+		
+		# bluetooth interface
 		self.hci = hci
-		self.scan_timeout = scan_timeout
-		# set callback functions (if supplied as arguments)
-		self.welcome_callback = welcome_callback
-		self.last_one_out_callback = last_one_out_callback
 		
-		self.registered_beacons = []
-		
-		# thread lock
-		self.lock = threading.Lock()
-			
-	def register_beacon(self, beacon, owner):
-		# add beacon to list of registered beacons
-		for key in PresenceSensor.BEACON_ID_KEYS:
-			if key not in list(beacon.keys()): 
-				return "Failed to register beacon (missing or invalid ID)"
-		if self._get_beacon(beacon) == None:
-			self.registered_beacons.append({"owner": owner, "ID": beacon, "last_seen": datetime.datetime.now(), "in": False})
-			return "Registered beacon %s to owner %s" % (beacon, owner)
+		# list to hold client connections
+		self.clients = []
 
-	def deregister_beacon(self, beacon):
-		self.registered_beacons.remove(self._get_beacon(beacon))
-		return "Deregistered beacon %s" % (beacon)
+		# events used to stop child threads
+		self.stop_event = threading.Event()
+				
+	def start(self, host='localhost', port=9999):
 
-	def start(self):
-		logger.info("Starting Presence Sensor...")
-		self.on = True
+		# start scanning for bluetooth packets in subprocess
+		self.lescan_p = subprocess.Popen(['hcitool', '-i', self.hci, 'lescan', '--duplicates'], stdout=DEVNULL)
+		# start hcidump to pipe raw bluetooth packets		
+		logger.debug("Running on Linux...")
+		hcidump_args = ['hcidump', '--raw', '-i', self.hci]
+		self.hcidump_p = subprocess.Popen(hcidump_args, stdout=subprocess.PIPE)
 
-		# start ibeacon scanner in subprocess and read output (blocking, so new thread)
-		self.scan_thread = threading.Thread(target=self._scanner)
+		self.scan_thread = threading.Thread(target=self.scan_loop)
 		self.scan_thread.start()
 
-		# start loop for presence sensor in new thread
-		self.thread = threading.Thread(target=self._loop)
-		self.thread.start()
+		# create a TCP/IP socket for the server
+		self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		# bind the socket to the port
+		server_address = (host, port)
+		print('Starting ibeacon server on %s:%s. Press Ctrl+C to exit.' % (server_address))
+		self.s.settimeout(5)
+		self.s.bind(server_address)
+		# listen for incoming connections
+		self.s.listen(1)
 
+		self.server_thread = threading.Thread(target=self.wait_for_connections)
+		self.server_thread.start()		
+
+	def wait_for_connections(self):
+		print('Waiting for connections...')
+		while not self.stop_event.isSet():
+			# accept incoming connections
+			try:
+				conn, client_address = self.s.accept()
+			except socket.timeout:
+				pass
+			else:
+				client = _ClientConnection(conn, client_address)
+				self.clients.append(client)
+				client.start()
+		logger.debug('Server stopped')
+			
+	def scan_loop(self):
+		"""
+		Parse ibeacon advertisements from bluetooth packets
+		"""
+		packet = ''
+		while not self.stop_event.isSet():
+			line = str(self.hcidump_p.stdout.readline(), encoding='utf-8')
+			line = line.replace(' ','').strip('\n')
+			if line != '' and line[0] == '>':	# signifies start of next packet
+				line = line[1:]	# trim leading '>'
+				if packet != '':
+					logger.debug(packet)
+					# check this is an ibeacon packet by checking the first 5 bytes
+					if packet.find('043E2A0201') == 0:
+						uuid = '-'.join((packet[46:54], packet[54:58], packet[58:62], packet[62:66], packet[66:78]))
+						major = int(packet[78:82], base=16)
+						minor = int(packet[82:86], base=16)
+						rssi = int(packet[88:90], base=16) - 256
+						msg = '{"UUID":"%s","Major":"%s","Minor":"%s","RSSI":%s}' % (uuid, major, minor, rssi)
+						for client in self.clients:
+							client.add_to_queue(msg)
+						logger.debug(msg)
+				packet = ''	# empty string ready for next packet
+			packet += line
+		logger.debug('Scanner stopped')
+				
 	def stop(self):
-		logger.info("Stopping Presence Sensor...")
-		self.on = False
+		self.stop_event.set()
 		self.scan_thread.join()
-		self.thread.join()
-		logger.debug("Presence Sensor stopped")
+		self.server_thread.join()
+		for client in self.clients:
+			client.join()
+		print('Bye!')
+		
 
-	def query(self, beacon_owner=None):
-		if beacon_owner is None:
-			occupied = False
-			for b in self.registered_beacons:
-				if b['in']: occupied = True
-			return occupied
-		else:
-			for b in self.registered_beacons:
-				if b['owner'] == beacon_owner:
-					return b['in']
+class Client():
+	def __init__(self, server_address, on_message=None):
+		self.server_address = server_address
+		self.message_handler = on_message
+		
+		# create a TCP/IP socket
+		self.s = _Socket()
+		
+		# connect the socket to the port where the server is listening
+		logger.debug('Connecting to ibeacon server at  %s:%s' % (self.server_address))
+		self.s.connect(self.server_address)
+		logger.debug('Connected!')
 
-	def _scanner(self):
-		# start scanning for bluetooth packets in subprocess
-		logger.debug("Starting scan...")
-		if os.uname()[0] == 'Linux':
-			self.lescan_p = subprocess.Popen(['sudo', 'hcitool', '-i', self.hci, 'lescan', '--duplicates'], stdout=DEVNULL, stderr=DEVNULL)
-
-		# start subprocesses in shell to dump and parse raw bluetooth packets		
-		if PLATFORM == 'Linux':
-			logger.debug("Running on Linux...")
-			hcidump_args = ['hcidump', '--raw', '-i', self.hci]
-			parse_args = ['./ibeacon_parse.sh']
-			self.hcidump_p = subprocess.Popen(hcidump_args, stdout=subprocess.PIPE, stderr=DEVNULL)
-			self.parse_p = subprocess.Popen(parse_args, stdout=subprocess.PIPE, stdin=self.hcidump_p.stdout, stderr=DEVNULL)
-
-		elif PLATFORM == 'Darwin':
-			logger.debug("Running on OSX...")
-			parse_args = ['./ibeacon_scan']
-			self.parse_p = subprocess.Popen(parse_args, stdout=subprocess.PIPE, stderr=DEVNULL)
-		else:
-			logger.error("Platform not supported")
-
-		while self.on:
-			message = self.parse_p.stdout.readline()
-			self._handle_message(message)
+		try:
+			while True:
+				data = self.s.recv(2)
+				(packet_len,) = struct.unpack('<H',data)
+				packet = self.s.recv(packet_len)
+				msg = json.loads(str(packet, encoding='utf-8'))
+				self.message_handler(msg)
+		
+		finally:
+			self.s.close()
 	
-	def _loop(self):
-		logger.debug("Starting loop...")
-		while self.on:
-			# if each beacon not seen for > SCAN_TIMEOUT then set 'in' to False. Call 
-			# last_one_out_callback() first time no beacons found after timeout.
-			now = datetime.datetime.now()
-			beacons_found = 0
-			with self.lock:
-				for b in self.registered_beacons:
-					if now - b['last_seen'] > self.scan_timeout:
-						if b['in']: logger.info(('[%s] Bye %s!' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), b['owner'])))
-						b['in'] = False
-					else:
-						beacons_found += 1
-			if (beacons_found == 0) and (beacons_found_last_loop > 0):
-					self.last_one_out_callback()
-			beacons_found_last_loop = beacons_found
-			time.sleep(0.1)
+			
+class _ClientConnection(threading.Thread):
+	"""
+	Send ibeacon advertisements to client
+	"""
+	def __init__(self, conn, client_address):
+		super(_ClientConnection, self).__init__()
+		self.conn = conn
+		self.client_address = client_address
+		print('Connection received from %s' % (client_address[0]))		
+		self.queue = []
+		self.stoprequest = threading.Event()
 	
-	def _handle_message(self, message):
-		# parse beacon IDs from message and fetch beacon from registered list
-		msg = json.loads(message.decode('utf-8'))
-		beacon_ID = {}
-		for key in PresenceSensor.BEACON_ID_KEYS:
-			beacon_ID[key] = msg[key]
-		beacon = self._get_beacon(beacon_ID)
-		# if beacon is registered
-		if (beacon != None):
-			# update last seen datetime and set 'in' to True
-			with self.lock: beacon['last_seen'] = datetime.datetime.now()
-			logger.debug("Beacon %s seen at %s" % (beacon['ID'], beacon['last_seen'].strftime('%Y-%m-%d %H:%M:%S')))
-			if beacon['in'] == False:
-				beacon['in'] = True
-				self.welcome_callback(beacon['owner'])
+	def run(self):
+		while not self.stoprequest.isSet():
+			if len(self.queue) != 0:
+				msg = self.queue.pop()
+				msg_len = len(msg)
+				data = struct.pack('<H', msg_len) + msg.encode('utf-8')
+				logger.debug('Sending: %s' % (data))
+				try:
+					self.conn.sendall(data)
+				except BrokenPipeError:
+					logger.debug('Client at %s disconnected unexpectedly' % (self.client_address[0]))
+					break
+		self.conn.close()
+		print('Connection to client at %s lost' % (self.client_address[0]))
+	
+	def add_to_queue(self, packet):
+		self.queue.append(packet)
+	
+	def join(self, timeout=None):
+		logger.debug('Stopping connection thread')
+		self.stoprequest.set()
+		super(_ClientConnection, self).join(timeout)
 
-	def _get_beacon(self, beacon):
-		for b in self.registered_beacons:
-			if b['ID'] == beacon:
-				return b
-		return None
+
+class _Socket():
+	"""
+	Simple socket class
+	"""
+	def __init__(self, sock=None):
+		if sock is None:
+			self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		else:
+			self.sock = sock
+	
+	def connect(self, server_address):
+		self.sock.connect(server_address)
+		
+	def send(self, msg):
+		totalsent = 0
+		while totalsent < len(msg):
+			sent = self.sock.send(msg[totalsent:])
+			print('Sent: %s' % (sent))
+			if sent == 0:
+				raise RuntimeError('socket connection broken')
+			totalsent = totalsent + sent
+		
+	def recv(self, msg_len):
+		chunks = []
+		bytes_recd = 0
+		while bytes_recd < msg_len:
+			chunk = self.sock.recv(min(msg_len - bytes_recd, 2048))
+			if chunk == b'':
+				raise RuntimeError('socket connection broken')
+			chunks.append(chunk)
+			bytes_recd = bytes_recd + len(chunk)
+		return b''.join(chunks)
+		
+	def close(self):
+		self.sock.close()

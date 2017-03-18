@@ -47,7 +47,7 @@
 		"transition": 6000,
 		"time": "sunset",
 		"offset": -20,
-		"lights": ["1st Floor Hall 1","1st Floor Hall 2","Lounge floor lamp","Lounge table lamp","P16TW 01", "P16TW 02", "P16TW 03", "P16TW 04", "P16TW 05", "P16TW 06"]
+		"lights": ["1st Floor Hall 1","1st Floor Hall 2","Lounge floor lamp","Lounge table lamp","P16TW 01", "P16TW 02", "P16TW 03", "P16TW 04", "P16TW 05", "P16TW 06", "Hue bloom 1"]
 	},
 	{
 		"trigger": "daylight",

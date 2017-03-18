@@ -5,7 +5,6 @@ Control smart lights at home using a Raspberry Pi with bluetooth buttons, presen
 This project implements a practical system to control the Philips Hue and Osram Lightify lights in our house using a Raspberry Pi 3 running Raspbian.  Key features include:
 - *Bluetooth buttons*: Switch groups of lights on or off using Flic bluetooth buttons.
 - *Presence monitoring*: Use bluetooth beacon key fobs to switch the lights on when either of us gets home, and switch them off again when we're out.
-- *Remote control*: Switch lights on, off and recall scenes over the internet.
 - *Timers*: Switch lights on, off and recall scenes at set times of the day.
 - *Daylight*: Switch lights on, off and recall scenes at sunrise or sunset.
 

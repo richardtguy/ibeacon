@@ -1,1 +1,464 @@
-{"evening": {"ksa8r2b5": {"on": 1, "bri": 75, "temp": 4600}, "eiqjstg7": {"on": true, "hue": 15327, "colormode": "ct", "effect": "none", "alert": "select", "xy": [0.4449, 0.4066], "reachable": true, "bri": 157, "ct": 346, "sat": 121}, "z9qum6cc": {"on": 1, "bri": 75, "temp": 4600}, "6es32v1t": {"on": true, "hue": 49033, "colormode": "xy", "effect": "none", "alert": "select", "xy": [0.2331, 0.1164], "reachable": true, "bri": 157, "ct": 153, "sat": 219}, "f9j4dl0z": {"on": 1, "bri": 75, "temp": 4600}, "fd1fkecc": {"on": true, "hue": 15327, "colormode": "ct", "effect": "none", "alert": "none", "xy": [0.4449, 0.4066], "reachable": true, "bri": 203, "ct": 346, "sat": 121}, "pg6ofy8w": {"on": true, "hue": 15327, "colormode": "ct", "effect": "none", "alert": "none", "xy": [0.4449, 0.4066], "reachable": true, "bri": 203, "ct": 346, "sat": 121}, "f5dh0dqo": {"on": true, "reachable": true, "bri": 168, "alert": "none"}, "0jsqhxg2": {"on": true, "reachable": true, "bri": 168, "alert": "none"}, "1h9df2h2": {"on": true, "hue": 9345, "colormode": "xy", "effect": "none", "alert": "none", "xy": [0.5359, 0.39], "reachable": true, "bri": 177, "ct": 500, "sat": 200}, "gi3nx8w6": {"on": true, "hue": 47630, "colormode": "xy", "effect": "none", "alert": "select", "xy": [0.2919, 0.2305], "reachable": true, "bri": 177, "ct": 153, "sat": 113}, "xic9y6wg": {"on": 1, "bri": 75, "temp": 4600}, "xj4m6qyi": {"on": 1, "bri": 75, "temp": 4600}, "5d499ygj": {"on": 1, "bri": 75, "temp": 4600}}, "daytime": {"ksa8r2b5": {"on": 1, "bri": 50, "temp": 6175}, "eiqjstg7": {"on": true, "hue": 33862, "colormode": "ct", "effect": "none", "alert": "select", "xy": [0.3677, 0.3684], "reachable": true, "bri": 203, "sat": 50, "ct": 233}, "1h9df2h2": {"on": false, "hue": 9345, "colormode": "xy", "effect": "none", "alert": "none", "xy": [0.5359, 0.39], "reachable": true, "bri": 177, "sat": 200, "ct": 500}, "6es32v1t": {"on": true, "hue": 40523, "colormode": "xy", "effect": "none", "alert": "select", "xy": [0.3498, 0.3589], "reachable": true, "bri": 127, "sat": 35, "ct": 206}, "f9j4dl0z": {"on": 1, "bri": 50, "temp": 6175}, "fd1fkecc": {"on": true, "hue": 33862, "colormode": "ct", "effect": "none", "alert": "none", "xy": [0.3677, 0.3684], "reachable": true, "bri": 152, "sat": 50, "ct": 233}, "pg6ofy8w": {"on": true, "hue": 33862, "colormode": "ct", "effect": "none", "alert": "none", "xy": [0.3677, 0.3684], "reachable": true, "bri": 254, "sat": 50, "ct": 233}, "f5dh0dqo": {"on": false, "reachable": true, "bri": 168, "alert": "none"}, "0jsqhxg2": {"on": false, "reachable": true, "bri": 168, "alert": "none"}, "z9qum6cc": {"on": 1, "bri": 50, "temp": 6175}, "gi3nx8w6": {"on": false, "hue": 47630, "colormode": "xy", "effect": "none", "alert": "select", "xy": [0.2919, 0.2305], "reachable": true, "bri": 177, "sat": 113, "ct": 153}, "xic9y6wg": {"on": 1, "bri": 50, "temp": 6175}, "xj4m6qyi": {"on": 1, "bri": 50, "temp": 6175}, "5d499ygj": {"on": 1, "bri": 50, "temp": 6175}}, "morning": {"ksa8r2b5": {"on": 1, "bri": 75, "temp": 6535}, "eiqjstg7": {"on": true, "hue": 47746, "colormode": "xy", "effect": "none", "alert": "select", "xy": [0.3434, 0.315], "reachable": true, "bri": 216, "ct": 195, "sat": 48}, "z9qum6cc": {"on": 1, "bri": 75, "temp": 6535}, "6es32v1t": {"on": true, "hue": 64395, "colormode": "xy", "effect": "none", "alert": "select", "xy": [0.4701, 0.3495], "reachable": true, "bri": 217, "ct": 385, "sat": 82}, "f9j4dl0z": {"on": 1, "bri": 75, "temp": 6535}, "fd1fkecc": {"on": true, "hue": 33862, "colormode": "ct", "effect": "none", "alert": "none", "xy": [0.3677, 0.3684], "reachable": true, "bri": 152, "ct": 233, "sat": 50}, "pg6ofy8w": {"on": true, "hue": 33862, "colormode": "ct", "effect": "none", "alert": "none", "xy": [0.3677, 0.3684], "reachable": true, "bri": 254, "ct": 233, "sat": 50}, "f5dh0dqo": {"on": true, "reachable": true, "bri": 122, "alert": "none"}, "0jsqhxg2": {"on": true, "reachable": true, "bri": 122, "alert": "none"}, "1h9df2h2": {"on": false, "hue": 9345, "colormode": "xy", "effect": "none", "alert": "none", "xy": [0.5359, 0.39], "reachable": true, "bri": 177, "ct": 500, "sat": 200}, "gi3nx8w6": {"on": false, "hue": 47633, "colormode": "xy", "effect": "none", "alert": "select", "xy": [0.2919, 0.2306], "reachable": true, "bri": 177, "ct": 153, "sat": 113}, "xic9y6wg": {"on": 1, "bri": 75, "temp": 6535}, "xj4m6qyi": {"on": 1, "bri": 75, "temp": 6535}, "5d499ygj": {"on": 1, "bri": 75, "temp": 6535}}}
+{
+    "morning": {
+        "hci8es9y": {
+            "on": true,
+            "alert": "lselect",
+            "bri": 254,
+            "reachable": false
+        },
+        "tfsv6vvg": {
+            "hue": 33042,
+            "xy": [
+                0.3684,
+                0.3716
+            ],
+            "alert": "lselect",
+            "reachable": true,
+            "sat": 55,
+            "effect": "none",
+            "ct": 233,
+            "on": true,
+            "bri": 221,
+            "colormode": "ct"
+        },
+        "7loy2e51": {
+            "temp": 4608,
+            "on": 1,
+            "bri": 75
+        },
+        "scoki9fp": {
+            "hue": 33042,
+            "xy": [
+                0.3684,
+                0.3716
+            ],
+            "alert": "lselect",
+            "reachable": true,
+            "sat": 55,
+            "effect": "none",
+            "ct": 233,
+            "on": true,
+            "bri": 150,
+            "colormode": "ct"
+        },
+        "ibbclunu": {
+            "hue": 56959,
+            "xy": [
+                0.451,
+                0.3466
+            ],
+            "alert": "select",
+            "reachable": true,
+            "sat": 75,
+            "effect": "none",
+            "on": true,
+            "bri": 178,
+            "colormode": "xy"
+        },
+        "503q6crq": {
+            "temp": 4608,
+            "on": 1,
+            "bri": 75
+        },
+        "71qe8j4b": {
+            "on": true,
+            "alert": "lselect",
+            "bri": 24,
+            "reachable": true
+        },
+        "dh4qskcy": {
+            "hue": 33042,
+            "xy": [
+                0.3684,
+                0.3716
+            ],
+            "alert": "lselect",
+            "reachable": true,
+            "sat": 55,
+            "effect": "none",
+            "ct": 233,
+            "on": true,
+            "bri": 188,
+            "colormode": "ct"
+        },
+        "9xzmquvv": {
+            "temp": 4608,
+            "on": 1,
+            "bri": 75
+        },
+        "e759f583": {
+            "temp": 4608,
+            "on": 1,
+            "bri": 75
+        },
+        "tn54l4t0": {
+            "hue": 60565,
+            "xy": [
+                0.4176,
+                0.3459
+            ],
+            "alert": "lselect",
+            "reachable": true,
+            "sat": 60,
+            "effect": "none",
+            "ct": 301,
+            "on": true,
+            "bri": 178,
+            "colormode": "xy"
+        },
+        "1w8tj1pb": {
+            "temp": 4608,
+            "on": 1,
+            "bri": 75
+        },
+        "55smsr8i": {
+            "hue": 41088,
+            "xy": [
+                0.3681,
+                0.3687
+            ],
+            "alert": "lselect",
+            "reachable": true,
+            "sat": 14,
+            "effect": "none",
+            "ct": 233,
+            "on": true,
+            "bri": 152,
+            "colormode": "ct"
+        },
+        "b4b9wlux": {
+            "temp": 4608,
+            "on": 1,
+            "bri": 75
+        },
+        "4b15z2f7": {
+            "on": true,
+            "alert": "lselect",
+            "bri": 24,
+            "reachable": true
+        },
+        "n1aiuft4": {
+            "hue": 47918,
+            "xy": [
+                0.3075,
+                0.2529
+            ],
+            "alert": "lselect",
+            "reachable": true,
+            "sat": 97,
+            "effect": "none",
+            "ct": 153,
+            "on": true,
+            "bri": 178,
+            "colormode": "xy"
+        }
+    },
+    "evening": {
+        "hci8es9y": {
+            "alert": "lselect",
+            "on": true,
+            "bri": 254,
+            "reachable": false
+        },
+        "b4b9wlux": {
+            "temp": 4608,
+            "on": 1,
+            "bri": 75
+        },
+        "7loy2e51": {
+            "temp": 4608,
+            "on": 1,
+            "bri": 75
+        },
+        "scoki9fp": {
+            "hue": 15324,
+            "xy": [
+                0.4449,
+                0.4066
+            ],
+            "effect": "none",
+            "reachable": true,
+            "sat": 121,
+            "alert": "lselect",
+            "ct": 346,
+            "on": true,
+            "bri": 157,
+            "colormode": "ct"
+        },
+        "ibbclunu": {
+            "hue": 56223,
+            "xy": [
+                0.4424,
+                0.3379
+            ],
+            "effect": "none",
+            "reachable": true,
+            "sat": 81,
+            "alert": "select",
+            "on": true,
+            "bri": 204,
+            "colormode": "xy"
+        },
+        "503q6crq": {
+            "temp": 4608,
+            "on": 1,
+            "bri": 75
+        },
+        "71qe8j4b": {
+            "alert": "lselect",
+            "on": true,
+            "bri": 152,
+            "reachable": true
+        },
+        "dh4qskcy": {
+            "hue": 33042,
+            "xy": [
+                0.3684,
+                0.3716
+            ],
+            "effect": "none",
+            "reachable": true,
+            "sat": 55,
+            "alert": "lselect",
+            "ct": 233,
+            "on": true,
+            "bri": 188,
+            "colormode": "ct"
+        },
+        "9xzmquvv": {
+            "temp": 4608,
+            "on": 1,
+            "bri": 75
+        },
+        "e759f583": {
+            "temp": 4608,
+            "on": 1,
+            "bri": 75
+        },
+        "tn54l4t0": {
+            "hue": 60565,
+            "xy": [
+                0.4176,
+                0.3459
+            ],
+            "effect": "none",
+            "reachable": true,
+            "sat": 60,
+            "alert": "lselect",
+            "ct": 301,
+            "on": true,
+            "bri": 204,
+            "colormode": "xy"
+        },
+        "1w8tj1pb": {
+            "temp": 4608,
+            "on": 1,
+            "bri": 75
+        },
+        "55smsr8i": {
+            "hue": 49036,
+            "xy": [
+                0.2331,
+                0.1165
+            ],
+            "effect": "none",
+            "reachable": true,
+            "sat": 219,
+            "alert": "lselect",
+            "ct": 153,
+            "on": true,
+            "bri": 157,
+            "colormode": "xy"
+        },
+        "tfsv6vvg": {
+            "hue": 33042,
+            "xy": [
+                0.3684,
+                0.3716
+            ],
+            "effect": "none",
+            "reachable": true,
+            "sat": 55,
+            "alert": "lselect",
+            "ct": 233,
+            "on": true,
+            "bri": 221,
+            "colormode": "ct"
+        },
+        "4b15z2f7": {
+            "alert": "lselect",
+            "on": true,
+            "bri": 152,
+            "reachable": true
+        },
+        "n1aiuft4": {
+            "hue": 47918,
+            "xy": [
+                0.3075,
+                0.2529
+            ],
+            "effect": "none",
+            "reachable": true,
+            "sat": 97,
+            "alert": "lselect",
+            "ct": 153,
+            "on": true,
+            "bri": 204,
+            "colormode": "xy"
+        }
+    },
+    "daytime": {
+        "hci8es9y": {
+            "on": true,
+            "alert": "lselect",
+            "bri": 254,
+            "reachable": false
+        },
+        "tfsv6vvg": {
+            "hue": 33042,
+            "xy": [
+                0.3684,
+                0.3716
+            ],
+            "effect": "none",
+            "reachable": true,
+            "sat": 55,
+            "alert": "lselect",
+            "ct": 233,
+            "on": true,
+            "bri": 221,
+            "colormode": "ct"
+        },
+        "7loy2e51": {
+            "temp": 4608,
+            "on": 0,
+            "bri": 75
+        },
+        "scoki9fp": {
+            "hue": 33042,
+            "xy": [
+                0.3684,
+                0.3716
+            ],
+            "effect": "none",
+            "reachable": true,
+            "sat": 55,
+            "alert": "lselect",
+            "ct": 233,
+            "on": true,
+            "bri": 150,
+            "colormode": "ct"
+        },
+        "ibbclunu": {
+            "hue": 56959,
+            "xy": [
+                0.451,
+                0.3466
+            ],
+            "effect": "none",
+            "reachable": true,
+            "sat": 75,
+            "alert": "select",
+            "on": true,
+            "bri": 178,
+            "colormode": "xy"
+        },
+        "503q6crq": {
+            "temp": 4608,
+            "on": 0,
+            "bri": 75
+        },
+        "71qe8j4b": {
+            "on": true,
+            "alert": "lselect",
+            "bri": 152,
+            "reachable": true
+        },
+        "dh4qskcy": {
+            "hue": 33042,
+            "xy": [
+                0.3684,
+                0.3716
+            ],
+            "effect": "none",
+            "reachable": true,
+            "sat": 55,
+            "alert": "lselect",
+            "ct": 233,
+            "on": true,
+            "bri": 188,
+            "colormode": "ct"
+        },
+        "9xzmquvv": {
+            "temp": 4608,
+            "on": 0,
+            "bri": 75
+        },
+        "e759f583": {
+            "temp": 4608,
+            "on": 0,
+            "bri": 75
+        },
+        "tn54l4t0": {
+            "hue": 60565,
+            "xy": [
+                0.4176,
+                0.3459
+            ],
+            "effect": "none",
+            "reachable": true,
+            "sat": 60,
+            "alert": "lselect",
+            "ct": 301,
+            "on": true,
+            "bri": 178,
+            "colormode": "xy"
+        },
+        "1w8tj1pb": {
+            "temp": 4608,
+            "on": 0,
+            "bri": 75
+        },
+        "55smsr8i": {
+            "hue": 41088,
+            "xy": [
+                0.3681,
+                0.3687
+            ],
+            "effect": "none",
+            "reachable": true,
+            "sat": 14,
+            "alert": "lselect",
+            "ct": 156,
+            "on": true,
+            "bri": 254,
+            "colormode": "ct"
+        },
+        "b4b9wlux": {
+            "temp": 4608,
+            "on": 0,
+            "bri": 75
+        },
+        "4b15z2f7": {
+            "on": true,
+            "alert": "lselect",
+            "bri": 152,
+            "reachable": true
+        },
+        "n1aiuft4": {
+            "hue": 47918,
+            "xy": [
+                0.3075,
+                0.2529
+            ],
+            "effect": "none",
+            "reachable": true,
+            "sat": 97,
+            "alert": "lselect",
+            "ct": 153,
+            "on": true,
+            "bri": 178,
+            "colormode": "xy"
+        }
+    }
+}
