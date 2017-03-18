@@ -386,11 +386,13 @@ class Bridge():
 
 	lock = threading.Lock()
 
-	def __init__(self, hue_uname=None, hue_IP=None, lightify_IP=None):
+	def __init__(self, hue_uname=None, lightify_IP=None):
 
 		self.__hue_connected = False
 		self.__lightify_connected = False
 		
+		if hue_uname != None: hue_IP = self._get_hue_address()
+				
 		# dict from light names to light objects
 		self.lights = {}
 
@@ -475,6 +477,37 @@ class Bridge():
 			self.lights[name] = _HueLight(name,light_id, host=IP, username=username)
 			print(self.lights[name].name())
 
+	def _get_hue_address(self):
+		"""
+		Get IP address of Hue bridge using UPnP
+		"""
+		msg = \
+			'M-SEARCH * HTTP/1.1\r\n' \
+			'HOST:239.255.255.250:1900\r\n' \
+			'ST:upnp:rootdevice\r\n' \
+			'MX:2\r\n' \
+			'MAN:"ssdp:discover"\r\n'
+
+		# Set up UDP socket
+		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+		s.settimeout(5)
+		s.sendto(msg, ('239.255.255.250', 1900) )
+
+		found_bridge = False
+
+		try:
+			while found_bridge == False:
+				data, addr = s.recvfrom(65507)
+				if 'IpBridge' in data:
+					found_bridge = True
+					bridge_IP, port = (addr)
+					logger.debug('Found Hue bridge at: {}'.format(bridge_IP))
+		
+		except socket.timeout:
+			logger.error('Hue bridge not found!')
+		
+		return(bridge_IP)
+
 	def _connect_to_lightify_gateway(self, hostname):
 		"""
 		Connect to Lightify gateway on local network, create a _LightifyLight object for
@@ -483,10 +516,10 @@ class Bridge():
 		# initialise connection to Lightify Gateway via local network
 		self.__lightify_connected = True
 
-		self.__lightify = LightifyGateway(hostname)
-		self.__lightify.get_all_lights()
+		self._lightify = LightifyGateway(hostname)
+		self._lightify.get_all_lights()
 
-		for light in self.__lightify.lights.values():
+		for light in self._lightify.lights.values():
 			self.lights[light.name()] = light
 			print(self.lights[light.name()].name())
 	
@@ -910,3 +943,34 @@ class LightifyGateway(_Lightify):
 		)
 		return result
 
+	def all_on(self):
+		ON = b'\x01'
+		self._broadcast(ON)
+		
+	def all_off(self):
+		OFF = b'\x00'
+		self._broadcast(OFF)	
+
+	def _broadcast(self, command):
+		length = 14 + len(command)
+		data = struct.pack(
+			"<H6B8B",
+			length,
+			0x00,
+			COMMAND_ONOFF,
+			0x01,
+			0,
+			0,
+			0,
+			0xff,
+			0xff,
+			0xff,
+			0xff,
+			0xff,
+			0xff,
+			0xff,
+			0xff
+		) + command
+		print('Sending: {}'.format(data))
+		response = self._send_command(data)
+		print(response)

@@ -89,7 +89,7 @@ def run():
 			got_button(bd_addr)
 	
 	# initialise lights bridge
-	bridge = lights.Bridge(hue_uname=config.HUE_USERNAME, hue_IP=config.HUE_IP_ADDRESS, lightify_IP=config.LIGHTIFY_IP)
+	bridge = lights.Bridge(hue_uname=config.HUE_USERNAME, lightify_IP=config.LIGHTIFY_IP)
 	
 	# load flic button groups from file
 	with open(config.FLIC_BUTTONS) as f:
