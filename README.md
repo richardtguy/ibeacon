@@ -16,14 +16,16 @@ We like to change the lighting scenes depending on the time of day (warm whites 
 
 We can schedule lights to come on at certain times, but only if there's someone home.  And when we get home the lights come on in the appropriate scene for the time of day.
 
-The project is implemented using Python 3 (and a shell script adapted from one I found [here](http://developer.radiusnetworks.com/ibeacon/idk/ibeacon_scan) by Radius Networks to parse the beacon advertisement packets).  The Python classes are documented below.
+The project is implemented using Python 3. The Python classes are documented below.
 
 ##Example usage
 - Start MQTT message broker on `localhost` (OSX: `/usr/local/sbin/mosquitto`, Linux: `sudo /etc/init.d/mosquitto start`)
 
 - Start Flic button server: `sudo ./flicd -f flic.sqlite3`
 
-- An example implementation, including use of daylight and timer rules, Flic buttons, a presence sensor, and remote control, is included in `run.py`.  Run this in a new terminal: `$ sudo python ./run.py`
+- Start ibeacon server (see [this repo](https://github.com/richardtguy/ibeacon-scan-hci))
+
+- An example implementation, including use of daylight and timer rules, Flic buttons, and a presence sensor, is included in `run.py`.  Run this in a new terminal: `$ ./run.py`
 
 Note that, depending on which features you're using, various configuration parameters are required.  In the example, these are supplied in a configuration file, `config.py`.
 
@@ -36,7 +38,7 @@ On Linux the `hcitools` command `lescan` is used to start scanning for bluetooth
 Start the scanner by calling the method `scan_forever()`.  This method is blocking, so should typically be run in a separate thread.
 
 ###class jubilee.ibeacon.PresenceSensor(*first\_one\_in\_callback=None, last\_one\_out\_callback=None, IP='localhost', port='1883', scan\_timeout=300*)
-The PresenceSensor subscribes to the `ibeacon/adverts` topic to receive ibeacon advertisements from the Scanner object via an MQTT message broker.  The IP address and port for the broker may be supplied as arguments, or default to port 1883 on the localhost.
+The PresenceSensor connects to the ibeacon server in order to receive ibeacon advertisements.  By default, the server is assumed to be on port 9999 on the localhost.
 
 The `PresenceSensor` class provides a simple API to query whether members of the household are currently in or out, based on whether advertisement packets have recently been received from registered iBeacons associated with each member of the household.  The `query(beacon_owner)` method returns `True` if `beacon_owner` is in, or `False` if the iBeacon registered to them has not been detected for longer than the specified timeout.  The `query()` may also be called without any arguments.  In this case, it returns `True` if any of the registered members of the household are present, or `False` if no-one is home.
 
