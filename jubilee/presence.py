@@ -108,7 +108,6 @@ class PresenceSensor():
 	
 	def _handle_message(self, message):
 		# parse beacon IDs from message and fetch beacon from registered list
-		logger.debug(message)
 		beacon = self._get_beacon(message)
 		# if beacon is registered
 		if (beacon != None):
@@ -118,10 +117,10 @@ class PresenceSensor():
 				logger.debug("Beacon %s seen at %s" % (beacon['ID'], beacon['last_seen'].strftime('%Y-%m-%d %H:%M:%S')))
 				if beacon['in'] == False:
 					beacon['in'] = True		
-			self.welcome_callback(beacon['owner'])
+					self.welcome_callback(beacon['owner'])
 
 	def _get_beacon(self, beacon):
 		for b in self.registered_beacons:
-			if b['ID'] == beacon:
+			if b['ID']['Minor'] == beacon['Minor'] and b['ID']['Major'] == beacon['Major'] and b['ID']['UUID'] == beacon['UUID']:
 				return b
 		return None

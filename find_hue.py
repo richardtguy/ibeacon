@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/usr/bin/python3
 
 import socket
 
@@ -18,7 +18,7 @@ found_bridge = False
 
 try:
 	while found_bridge == False:
-		data, addr = s.recvfrom(65507)        
+		data, addr = s.recvfrom(65507)
 		if 'IpBridge' in data.decode():
 			found_bridge = True
 			bridge_IP, port = (addr)

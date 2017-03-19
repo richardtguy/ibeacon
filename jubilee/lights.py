@@ -386,15 +386,18 @@ class Bridge():
 
 	lock = threading.Lock()
 
-	def __init__(self, hue_uname=None, lightify_IP=None):
+	def __init__(self, hue_uname=None, lightify=False):
 
 		self.__hue_connected = False
 		self.__lightify_connected = False
-		
-		if hue_uname != None: hue_IP = self._get_hue_address()
-				
+
 		# dict from light names to light objects
 		self.lights = {}
+		
+		if hue_uname != None: hue_IP = self._get_hue_address()
+	
+		# connect to Osram Lightify gateway and load connected lights (if applicable)
+		if lightify: self._connect_to_lightify_gateway()				
 
 		# read list of connected lights from file if available, or connect to bridge and gateway to rebuild list
 		fname = config.SAVED_LIGHTS
@@ -411,11 +414,6 @@ class Bridge():
 				print('Connecting to Hue Bridge...')
 				self._connect_to_hue_bridge(hue_uname, hue_IP)
 		
-			# connect to Osram Lightify gateway and load connected lights (if applicable)
-			if lightify_IP != None:
-				print('Connecting to Lightify Gateway...')
-				self._connect_to_lightify_gateway(lightify_IP)
-
 			# save list of lights to file
 			lights_to_save = []
 			for name, obj in self.lights.items():
@@ -441,7 +439,7 @@ class Bridge():
 					self.__hue_connected = True
 					logger.info(self.lights[l['name']].name())
 				elif l['type'] == 'Lightify':
-					self.lights[l['name']] = _LightifyLight(l['addr'], lightify_IP, name=l['name'], uid=l['uid'])				
+					self.lights[l['name']] = _LightifyLight(l['addr'], self._lightify._host, name=l['name'], uid=l['uid'])				
 					self.__lightify_connected = True
 					logger.info(self.lights[l['name']].name())
 			print('OK')		
@@ -475,7 +473,7 @@ class Bridge():
 		for light_id in r:
 			name = (r[light_id]['name'])
 			self.lights[name] = _HueLight(name,light_id, host=IP, username=username)
-			print(self.lights[name].name())
+			logger.debug(self.lights[name].name())
 
 	def _get_hue_address(self):
 		"""
@@ -491,14 +489,14 @@ class Bridge():
 		# Set up UDP socket
 		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 		s.settimeout(5)
-		s.sendto(msg, ('239.255.255.250', 1900) )
+		s.sendto(msg.encode(), ('239.255.255.250', 1900) )
 
 		found_bridge = False
 
 		try:
 			while found_bridge == False:
 				data, addr = s.recvfrom(65507)
-				if 'IpBridge' in data:
+				if 'IpBridge' in data.decode():
 					found_bridge = True
 					bridge_IP, port = (addr)
 					logger.debug('Found Hue bridge at: {}'.format(bridge_IP))
@@ -508,7 +506,7 @@ class Bridge():
 		
 		return(bridge_IP)
 
-	def _connect_to_lightify_gateway(self, hostname):
+	def _connect_to_lightify_gateway(self):
 		"""
 		Connect to Lightify gateway on local network, create a _LightifyLight object for
 		each registered light, with names as keys and add to lights dictionary.
@@ -516,13 +514,28 @@ class Bridge():
 		# initialise connection to Lightify Gateway via local network
 		self.__lightify_connected = True
 
-		self._lightify = LightifyGateway(hostname)
-		self._lightify.get_all_lights()
-
+		self._lightify = self._get_lightify_gateway()
+		
 		for light in self._lightify.lights.values():
 			self.lights[light.name()] = light
-			print(self.lights[light.name()].name())
+			logger.debug(self.lights[light.name()].name())
 	
+	def _get_lightify_gateway(self):
+		"""
+		Get Lightify Gateway by pinging IP addresses
+		"""
+		base_address = "192.168.1."
+		for i in range(32):
+			ip = base_address + str(i)
+			lightify = LightifyGateway(ip)
+			try:
+				lightify.get_all_lights()
+			except:
+				pass
+			else:
+				logger.debug("Found Lightify Gateway at: {}".format(ip))
+				return(lightify)
+
 	@sync(lock)
 	def save_scene_locally(self, scene_name):
 		"""
@@ -971,6 +984,6 @@ class LightifyGateway(_Lightify):
 			0xff,
 			0xff
 		) + command
-		print('Sending: {}'.format(data))
+		logger.debug('Sending: {}'.format(data))
 		response = self._send_command(data)
-		print(response)
+		logger.debug('Received: {}'.format(response))
